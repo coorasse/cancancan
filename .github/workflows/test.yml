@@ -14,7 +14,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ruby: ['3.2', '3.3', '3.4', '4.0']
+        ruby: ['3.2', '3.3', '3.4', '4.0', 'truffleruby']
         gemfile:
           - 'gemfiles/activerecord_8.0.0.gemfile'
           - 'gemfiles/activerecord_8.1.0.gemfile'
