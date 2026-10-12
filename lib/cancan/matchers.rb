@@ -23,6 +23,17 @@ Kernel.const_get(rspec_module)::Matchers.define :be_able_to do |*args|
     end
   end
 
+  match_when_negated do |ability|
+    actions = args.first
+    if actions.is_a? Array
+      raise CanCan::ImplementationRemoved, '`expect(...).not_to be_able_to(:action_a, :action_b)` is not supported: ' \
+                                           'it passes as soon as one action is forbidden, which is ambiguous. ' \
+                                           'Write one expectation per action instead.'
+    else
+      !ability.can?(*args)
+    end
+  end
+
   # Check that RSpec is < 2.99
   if !respond_to?(:failure_message) && respond_to?(:failure_message_for_should)
     alias_method :failure_message, :failure_message_for_should

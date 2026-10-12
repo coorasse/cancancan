@@ -45,14 +45,12 @@ describe 'be_able_to' do
       is_expected.to be_able_to(%i[read update], 123)
     end
 
-    it 'delegates to can? with array of abilities with empty array' do
-      is_expected.not_to be_able_to([], 123)
+    it 'raises an error when negated with an empty array of actions' do
+      expect { is_expected.not_to be_able_to([], 123) }.to raise_error(CanCan::ImplementationRemoved)
     end
 
-    it 'delegates to can? with array of abilities with only one eligible ability' do
-      is_expected.to receive(:can?).with(:read, 123) { true }
-      is_expected.to receive(:can?).with(:update, 123) { false }
-      is_expected.not_to be_able_to(%i[read update], 123)
+    it 'raises an error when negated with several actions' do
+      expect { is_expected.not_to be_able_to(%i[read update], 123) }.to raise_error(CanCan::ImplementationRemoved)
     end
   end
 end
