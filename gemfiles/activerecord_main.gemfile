@@ -8,13 +8,20 @@ git "https://github.com/rails/rails", branch: "main" do
   gem "activesupport", require: "active_support/all"
 end
 
+group :development do
+  gem "appraisal"
+  gem "rake"
+  gem "rspec"
+  gem "rubocop"
+end
+
 platforms :jruby do
   gem "activerecord-jdbcsqlite3-adapter"
   gem "jdbc-sqlite3"
   gem "jdbc-postgres"
 end
 
-platforms :ruby, :mswin, :mingw do
+platforms :ruby, :windows do
   gem "pg", "~> 1.5.6"
   gem "sqlite3", ">= 2.1"
 end

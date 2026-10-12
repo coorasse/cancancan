@@ -13,13 +13,13 @@ You can customize the SQL strategy globally with:
 ```ruby
 # config/initializers/cancancan.rb
 
-CanCan.accessible_by_strategy = :subquery # :left_join is the default
+CanCan.accessible_by_strategy = :left_join # :subquery is the default
 ```
 
 or on a single `accessible_by` call:
 
 ```ruby
-Article.accessible_by(current_ability, strategy: :subquery) # :left_join is, again, the default
+Article.accessible_by(current_ability, strategy: :left_join) # :subquery is, again, the default
 ```
 
 or on a group of queries:

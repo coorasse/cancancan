@@ -12,8 +12,8 @@ module CanCan
       #     load_and_authorize_resource
       #   end
       #
-      def load_and_authorize_resource(*args)
-        cancan_resource_class.add_before_action(self, :load_and_authorize_resource, *args)
+      def load_and_authorize_resource(*)
+        cancan_resource_class.add_before_action(self, :load_and_authorize_resource, *)
       end
 
       # Sets up a before filter which loads the model resource into an instance variable.
@@ -119,8 +119,8 @@ module CanCan
       # [:+prepend+]
       #   Passing +true+ will use prepend_before_action instead of a normal before_action.
       #
-      def load_resource(*args)
-        cancan_resource_class.add_before_action(self, :load_resource, *args)
+      def load_resource(*)
+        cancan_resource_class.add_before_action(self, :load_resource, *)
       end
 
       # Sets up a before filter which authorizes the resource using the instance variable.
@@ -183,8 +183,8 @@ module CanCan
       # [:+prepend+]
       #   Passing +true+ will use prepend_before_action instead of a normal before_action.
       #
-      def authorize_resource(*args)
-        cancan_resource_class.add_before_action(self, :authorize_resource, *args)
+      def authorize_resource(*)
+        cancan_resource_class.add_before_action(self, :authorize_resource, *)
       end
 
       # Skip both the loading and authorization behavior of CanCan for this given controller. This is primarily
@@ -196,9 +196,9 @@ module CanCan
       #   end
       #
       # You can also pass the resource name as the first argument to skip that resource.
-      def skip_load_and_authorize_resource(*args)
-        skip_load_resource(*args)
-        skip_authorize_resource(*args)
+      def skip_load_and_authorize_resource(*)
+        skip_load_resource(*)
+        skip_authorize_resource(*)
       end
 
       # Skip the loading behavior of CanCan. This is useful when using +load_and_authorize_resource+ but want to
@@ -284,9 +284,9 @@ module CanCan
       #   end
       #
       # Any arguments are passed to the +before_action+ it triggers.
-      def skip_authorization_check(*args)
+      def skip_authorization_check(*)
         block = proc { |controller| controller.instance_variable_set(:@_authorized, true) }
-        send(:before_action, *args, &block)
+        send(:before_action, *, &block)
       end
 
       def cancan_resource_class
@@ -349,9 +349,9 @@ module CanCan
     #
     # See the load_and_authorize_resource method to automatically add the authorize! behavior
     # to the default RESTful actions.
-    def authorize!(*args)
+    def authorize!(*)
       @_authorized = true
-      current_ability.authorize!(*args)
+      current_ability.authorize!(*)
     end
 
     # Creates and returns the current user's ability and caches it. If you
@@ -388,16 +388,16 @@ module CanCan
     #   <% end %>
     #
     # This simply calls "can?" on the current_ability. See Ability#can?.
-    def can?(*args)
-      current_ability.can?(*args)
+    def can?(*)
+      current_ability.can?(*)
     end
 
     # Convenience method which works the same as "can?" but returns the opposite value.
     #
     #   cannot? :destroy, @project
     #
-    def cannot?(*args)
-      current_ability.cannot?(*args)
+    def cannot?(*)
+      current_ability.cannot?(*)
     end
   end
 end

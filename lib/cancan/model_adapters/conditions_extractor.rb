@@ -98,9 +98,8 @@ module CanCan
         [table, true]
       end
 
-      # ActiveRecord reuses the through tables of the associations already joined since version 6.1
       def reuse_joined_table?(table, root, terminated)
-        table && (!root || !terminated) && ActiveRecordAdapter.version_greater_or_equal?('6.1.0')
+        table && (!root || !terminated)
       end
 
       # Mirrors ActiveRecord::Associations::AliasTracker#aliased_table_for
@@ -116,15 +115,7 @@ module CanCan
       end
 
       def table_alias_length
-        @table_alias_length ||= connection.table_alias_length
-      end
-
-      def connection
-        if @root_model_class.respond_to?(:lease_connection)
-          @root_model_class.lease_connection
-        else
-          @root_model_class.connection
-        end
+        @table_alias_length ||= @root_model_class.lease_connection.table_alias_length
       end
     end
   end

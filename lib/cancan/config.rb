@@ -2,13 +2,7 @@
 
 module CanCan
   def self.valid_accessible_by_strategies
-    strategies = [:left_join]
-
-    unless does_not_support_subquery_strategy?
-      strategies.push(:joined_alias_exists_subquery, :joined_alias_each_rule_as_exists_subquery, :subquery)
-    end
-
-    strategies
+    %i[left_join joined_alias_exists_subquery joined_alias_each_rule_as_exists_subquery subquery]
   end
 
   # You can disable the rules compressor if it's causing unexpected issues.
@@ -58,23 +52,11 @@ module CanCan
   end
 
   def self.default_accessible_by_strategy
-    if does_not_support_subquery_strategy?
-      # see https://github.com/CanCanCommunity/cancancan/pull/655 for where this was added
-      # the `subquery` strategy (from https://github.com/CanCanCommunity/cancancan/pull/619
-      # only works in Rails 5 and higher
-      :left_join
-    else
-      :subquery
-    end
+    :subquery
   end
 
   def self.accessible_by_strategy=(value)
     validate_accessible_by_strategy!(value)
-
-    if value == :subquery && does_not_support_subquery_strategy?
-      raise ArgumentError, 'accessible_by_strategy = :subquery requires ActiveRecord 5 or newer'
-    end
-
     @accessible_by_strategy = value
   end
 
@@ -106,10 +88,5 @@ module CanCan
     value.is_a?(Class) &&
       defined?(CanCan::ModelAdapters::Strategies::Base) &&
       value < CanCan::ModelAdapters::Strategies::Base
-  end
-
-  def self.does_not_support_subquery_strategy?
-    !defined?(CanCan::ModelAdapters::ActiveRecordAdapter) ||
-      CanCan::ModelAdapters::ActiveRecordAdapter.version_lower?('5.0.0')
   end
 end

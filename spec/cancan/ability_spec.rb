@@ -516,7 +516,7 @@ describe CanCan::Ability do
     expect(@ability.can?(:read, Y.new)).to be(true)
   end
 
-  # rubocop:disable Style/SymbolProc
+  # rubocop:disable-next Style/SymbolProc
   describe 'different usages of blocks and procs' do
     class A
       def active?
@@ -546,7 +546,6 @@ describe CanCan::Ability do
       expect(@ability).to be_able_to(:read, A.new)
     end
   end
-  # rubocop:enable Style/SymbolProc
 
   describe '#authorize!' do
     describe 'when ability is not authorized to perform an action' do

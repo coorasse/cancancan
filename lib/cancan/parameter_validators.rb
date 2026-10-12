@@ -3,7 +3,7 @@
 module CanCan
   module ParameterValidators
     def valid_attribute_param?(attribute)
-      attribute.nil? || attribute.is_a?(Symbol) || (attribute.is_a?(Array) && attribute.all? { |a| a.is_a?(Symbol) })
+      attribute.nil? || attribute.is_a?(Symbol) || (attribute.is_a?(Array) && attribute.all?(Symbol))
     end
   end
 end

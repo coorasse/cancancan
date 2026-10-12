@@ -1,19 +1,8 @@
 # frozen_string_literal: true
 
-# rubocop:disable Metrics/AbcSize
-# rubocop:disable Metrics/CyclomaticComplexity
-# rubocop:disable Metrics/PerceivedComplexity
 module CanCan
   module ModelAdapters
     class ActiveRecordAdapter < AbstractAdapter
-      def self.version_greater_or_equal?(version)
-        Gem::Version.new(ActiveRecord.version).release >= Gem::Version.new(version)
-      end
-
-      def self.version_lower?(version)
-        Gem::Version.new(ActiveRecord.version).release < Gem::Version.new(version)
-      end
-
       attr_reader :compressed_rules
 
       def initialize(model_class, rules)
@@ -30,6 +19,25 @@ module CanCan
       end
 
       class << self
+        def for_class?(model_class)
+          model_class <= ActiveRecord::Base
+        end
+
+        def override_condition_matching?(subject, name, _value)
+          subject.class.defined_enums.include?(name.to_s)
+        end
+
+        # Enum conditions can be given as the stored values (usually integers) or as the enum names,
+        # as strings or symbols.
+        def matches_condition?(subject, name, value)
+          values = value.nil? ? [nil] : Array.wrap(value)
+          enum = subject.class.send(name.to_s.pluralize)
+          attribute = subject.send(name)
+          return values.include?(enum[attribute]) if values.all?(Integer)
+
+          values.map(&:to_s).intersect?([attribute.to_s, enum[attribute].to_s])
+        end
+
         # When belongs_to parent_id is a condition for a model,
         # we want to check the parent when testing ability for a hash {parent => model}
         def override_nested_subject_conditions_matching?(parent, child, all_conditions)
@@ -133,10 +141,8 @@ module CanCan
       def database_records
         if override_scope
           merge_override_scope
-        elsif @model_class.respond_to?(:where) && @model_class.respond_to?(:joins)
-          build_relation(where_conditions)
         else
-          @model_class.all(conditions: conditions, joins: joins)
+          build_relation(where_conditions)
         end
       end
 
@@ -144,8 +150,7 @@ module CanCan
         relation = @model_class.where(*where_conditions)
         return relation unless joins.present?
 
-        # subclasses must implement `build_joins_relation`
-        build_joins_relation(relation, *where_conditions)
+        strategy_class.new(adapter: self, relation: relation, where_conditions: where_conditions).execute!
       end
 
       # Returns the associations used in conditions for the :joins option of a search.
@@ -159,6 +164,13 @@ module CanCan
       end
 
       private
+
+      def strategy_class
+        strategy = CanCan.accessible_by_strategy
+        return strategy if strategy.is_a?(Class)
+
+        CanCan::ModelAdapters::Strategies.const_get(strategy.to_s.camelize)
+      end
 
       def extract_conditions(conditions_extractor)
         if @compressed_rules.size == 1 && @compressed_rules.first.base_behavior
@@ -180,7 +192,7 @@ module CanCan
       end
 
       def where_node(conditions, conditions_extractor)
-        sanitize_sql(conditions, conditions_extractor)
+        Arel::Nodes::And.new(predicates(conditions, conditions_extractor))
       end
 
       # Removes empty hashes and moves everything into arrays.
@@ -212,7 +224,7 @@ module CanCan
 
       def override_scope
         conditions = @compressed_rules.map(&:conditions).compact
-        return unless conditions.any? { |c| c.is_a?(ActiveRecord::Relation) }
+        return unless conditions.any?(ActiveRecord::Relation)
         return conditions.first if conditions.size == 1
 
         raise_override_scope_error
@@ -272,16 +284,36 @@ module CanCan
         sanitize_sql(['?=?', true, true])
       end
 
-      def sanitize_sql(conditions, _conditions_extractor = nil)
-        @model_class.send(:sanitize_sql, conditions)
+      def sanitize_sql(conditions, conditions_extractor = nil)
+        return @model_class.send(:sanitize_sql, conditions) unless conditions.is_a?(Hash)
+
+        predicates(conditions, conditions_extractor).map { |node| visit_node(node) }.join(' AND ')
+      end
+
+      def predicates(conditions, conditions_extractor)
+        conditions.flat_map do |key, value|
+          table_class = value.is_a?(Hash) && conditions_extractor&.model_class_for(key)
+          if table_class
+            predicate_builder(table_class, table_class.arel_table.alias(key.to_s)).build_from_hash(value.stringify_keys)
+          else
+            predicate_builder(@model_class, @model_class.arel_table).build_from_hash(key.to_s => value)
+          end
+        end
+      end
+
+      def predicate_builder(model_class, table)
+        ActiveRecord::PredicateBuilder.new(ActiveRecord::TableMetadata.new(model_class, table))
+      end
+
+      def visit_node(node)
+        connection = @model_class.lease_connection
+        collector = Arel::Collectors::SubstituteBinds.new(connection, Arel::Collectors::SQLString.new)
+        connection.visitor.accept(node, collector).value
       end
     end
   end
 end
-# rubocop:enable Metrics/PerceivedComplexity
-# rubocop:enable Metrics/CyclomaticComplexity
-# rubocop:enable Metrics/AbcSize
 
 ActiveSupport.on_load(:active_record) do
-  send :include, CanCan::ModelAdditions
+  include CanCan::ModelAdditions
 end

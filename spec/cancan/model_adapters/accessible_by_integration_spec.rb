@@ -3,7 +3,7 @@
 require 'spec_helper'
 
 # integration tests for latest ActiveRecord version.
-RSpec.describe CanCan::ModelAdapters::ActiveRecord5Adapter do
+RSpec.describe CanCan::ModelAdapters::ActiveRecordAdapter do
   let(:ability) { double.extend(CanCan::Ability) }
   let(:users_table) { Post.table_name }
   let(:posts_table) { Post.table_name }
@@ -89,12 +89,10 @@ RSpec.describe CanCan::ModelAdapters::ActiveRecord5Adapter do
     end
   end
 
-  if CanCan::ModelAdapters::ActiveRecordAdapter.version_greater_or_equal?('5.0.0')
-    describe 'selecting custom columns' do
-      it 'extracts custom columns correctly' do
-        posts = Post.accessible_by(ability).where(published: true).select('title as mytitle')
-        expect(posts[0].mytitle).to eq 'post1'
-      end
+  describe 'selecting custom columns' do
+    it 'extracts custom columns correctly' do
+      posts = Post.accessible_by(ability).where(published: true).select('title as mytitle')
+      expect(posts[0].mytitle).to eq 'post1'
     end
   end
 end

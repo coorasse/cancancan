@@ -337,7 +337,7 @@ module CanCan
     end
 
     def params_methods
-      methods = ["#{@params[:action]}_params".to_sym, "#{name}_params".to_sym, :resource_params]
+      methods = [:"#{@params[:action]}_params", :"#{name}_params", :resource_params]
       methods.unshift(@options[:param_method]) if @options[:param_method].present?
       methods
     end

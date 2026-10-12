@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
-require 'ostruct' # for OpenStruct below
 
 # Most of Rule functionality is tested in Ability specs
 RSpec.describe CanCan::Rule do

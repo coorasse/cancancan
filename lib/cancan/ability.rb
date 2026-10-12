@@ -84,8 +84,8 @@ module CanCan
     #
     #   cannot? :destroy, @project
     #
-    def cannot?(*args)
-      !can?(*args)
+    def cannot?(*)
+      !can?(*)
     end
 
     # Defines which abilities are allowed using two arguments. The first one is the action
@@ -141,8 +141,8 @@ module CanCan
     #     # check the database and return true/false
     #   end
     #
-    def can(action = nil, subject = nil, *attributes_and_conditions, &block)
-      add_rule(Rule.new(true, action, subject, *attributes_and_conditions, &block))
+    def can(action = nil, subject = nil, *attributes_and_conditions, &)
+      add_rule(Rule.new(true, action, subject, *attributes_and_conditions, &))
     end
 
     # Defines an ability which cannot be done. Accepts the same arguments as "can".
@@ -157,8 +157,8 @@ module CanCan
     #     product.invisible?
     #   end
     #
-    def cannot(action = nil, subject = nil, *attributes_and_conditions, &block)
-      add_rule(Rule.new(false, action, subject, *attributes_and_conditions, &block))
+    def cannot(action = nil, subject = nil, *attributes_and_conditions, &)
+      add_rule(Rule.new(false, action, subject, *attributes_and_conditions, &))
     end
 
     # User shouldn't specify targets with names of real actions or it will cause Seg fault

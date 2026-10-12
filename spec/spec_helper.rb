@@ -8,8 +8,7 @@ Bundler.require
 require 'matchers'
 require 'cancan/matchers'
 
-# I8n setting to fix deprecation.
-I18n.enforce_available_locales = false if defined?(I18n) && I18n.respond_to?('enforce_available_locales=')
+I18n.enforce_available_locales = false
 
 # Add support to load paths
 $LOAD_PATH.unshift File.expand_path('support', __dir__)

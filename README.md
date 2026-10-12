@@ -155,7 +155,7 @@ of Rails, as well as the different model adapters.
 
 When first developing, you need to run `bundle install` and then `bundle exec appraisal install`, to install the different sets.
 
-You can then run all appraisal files (like CI does), with `appraisal rake` or just run a specific set `DB='sqlite' bundle exec appraisal activerecord_5.2.2 rake`.
+You can then run all appraisal files (like CI does), with `appraisal rake` or just run a specific set `DB='sqlite' bundle exec appraisal activerecord_8.1.0 rake`.
 
 If you'd like to run a specific set of tests within a specific file or folder you can use `DB='sqlite' SPEC=path/to/file/or/folder bundle exec appraisal activerecord_5.2.2 rake`.
 

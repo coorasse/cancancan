@@ -17,14 +17,8 @@ Gem::Specification.new do |s|
   s.platform    = Gem::Platform::RUBY
   s.license     = 'MIT'
 
-  s.files       = `git ls-files lib init.rb cancancan.gemspec`.split($INPUT_RECORD_SEPARATOR)
+  s.files       = `git ls-files lib cancancan.gemspec`.split($INPUT_RECORD_SEPARATOR)
   s.require_paths = ['lib']
 
-  s.required_ruby_version = '>= 2.2.0'
-
-  s.add_development_dependency 'appraisal', '~> 2.0', '>= 2.0.0'
-  s.add_development_dependency 'bundler', '~> 2.0'
-  s.add_development_dependency 'rake'
-  s.add_development_dependency 'rspec', '~> 3.2', '>= 3.2.0'
-  s.add_development_dependency 'rubocop', '~> 1.31.1'
+  s.required_ruby_version = '>= 3.2.0'
 end

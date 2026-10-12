@@ -2,7 +2,7 @@
 
 require 'spec_helper'
 
-RSpec.describe CanCan::ModelAdapters::ActiveRecord5Adapter do
+RSpec.describe CanCan::ModelAdapters::ActiveRecordAdapter do
   let(:ability) { double.extend(CanCan::Ability) }
 
   before do

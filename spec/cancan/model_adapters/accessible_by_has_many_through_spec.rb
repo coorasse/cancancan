@@ -1,7 +1,7 @@
 require 'spec_helper'
 
 # integration tests for latest ActiveRecord version.
-RSpec.describe CanCan::ModelAdapters::ActiveRecord5Adapter do
+RSpec.describe CanCan::ModelAdapters::ActiveRecordAdapter do
   let(:ability) { double.extend(CanCan::Ability) }
   let(:users_table) { Post.table_name }
   let(:posts_table) { Post.table_name }
@@ -99,12 +99,10 @@ RSpec.describe CanCan::ModelAdapters::ActiveRecord5Adapter do
         end
       end
 
-      if CanCan::ModelAdapters::ActiveRecordAdapter.version_greater_or_equal?('5.0.0')
-        describe 'selecting custom columns' do
-          it 'extracts custom columns correctly' do
-            posts = Post.accessible_by(ability).where(published: true).select('posts.title as mytitle')
-            expect(posts[0].mytitle).to eq 'post1'
-          end
+      describe 'selecting custom columns' do
+        it 'extracts custom columns correctly' do
+          posts = Post.accessible_by(ability).where(published: true).select('posts.title as mytitle')
+          expect(posts[0].mytitle).to eq 'post1'
         end
       end
 
@@ -128,16 +126,14 @@ RSpec.describe CanCan::ModelAdapters::ActiveRecord5Adapter do
     end
   end
 
-  unless CanCan::ModelAdapters::ActiveRecordAdapter.version_lower?('5.0.0')
-    describe 'filtering of results - subquery' do
-      before :each do
-        CanCan.accessible_by_strategy = :subquery
-      end
+  describe 'filtering of results - subquery' do
+    before :each do
+      CanCan.accessible_by_strategy = :subquery
+    end
 
-      it 'adds the where clause correctly with joins' do
-        posts = Post.joins(:editors).where('editors.user_id': @user1.id).accessible_by(ability)
-        expect(posts.length).to eq 1
-      end
+    it 'adds the where clause correctly with joins' do
+      posts = Post.joins(:editors).where('editors.user_id': @user1.id).accessible_by(ability)
+      expect(posts.length).to eq 1
     end
   end
 
@@ -146,11 +142,9 @@ RSpec.describe CanCan::ModelAdapters::ActiveRecord5Adapter do
       CanCan.accessible_by_strategy = :left_join
     end
 
-    if CanCan::ModelAdapters::ActiveRecordAdapter.version_greater_or_equal?('5.2.0')
-      it 'adds the where clause correctly with joins on AR 5.2+' do
-        posts = Post.joins(:editors).where('editors.user_id': @user1.id).accessible_by(ability)
-        expect(posts.length).to eq 1
-      end
+    it 'adds the where clause correctly with joins' do
+      posts = Post.joins(:editors).where('editors.user_id': @user1.id).accessible_by(ability)
+      expect(posts.length).to eq 1
     end
 
     it 'adds the where clause correctly without joins' do

@@ -6,13 +6,20 @@ gem "actionpack", "~> 8.1.0", require: "action_pack"
 gem "activerecord", "~> 8.1.0", require: "active_record"
 gem "activesupport", "~> 8.1.0", require: "active_support/all"
 
+group :development do
+  gem "appraisal"
+  gem "rake"
+  gem "rspec"
+  gem "rubocop"
+end
+
 platforms :jruby do
   gem "activerecord-jdbcsqlite3-adapter"
   gem "jdbc-sqlite3"
   gem "jdbc-postgres"
 end
 
-platforms :ruby, :mswin, :mingw do
+platforms :ruby, :windows do
   gem "pg", "~> 1.5.6"
   gem "sqlite3", ">= 2.1"
 end

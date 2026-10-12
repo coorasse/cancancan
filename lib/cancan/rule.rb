@@ -12,6 +12,7 @@ module CanCan
     include ConditionsMatcher
     include Relevant
     include ParameterValidators
+
     attr_reader :base_behavior, :subjects, :actions, :conditions, :attributes, :block
     attr_writer :expanded_actions, :conditions
 

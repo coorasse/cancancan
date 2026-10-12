@@ -5,8 +5,6 @@ CanCanCan includes a model adapter system that allows developers to add their ow
 CanCanCan provides maintained adapters for the following model types:
 
 - ActiveRecord (native in `cancancan` gem)
-  - ActiveRecord 4
-  - ActiveRecord 5
 - [Mongoid](https://github.com/CanCanCommunity/cancancan-mongoid)
 
 ## Creating a Model Adapter
@@ -48,14 +46,14 @@ cancancan/Appraisals
 ```ruby
 
 appraise 'cancancan_custom_adapter' do
-  gem 'activerecord', '~> 5.0.2', require: 'active_record'
+  gem 'activerecord', '~> 8.1.0', require: 'active_record'
 
-  gemfile.platforms :jruby do
+  platforms :jruby do
     gem 'jdbc-postgres'
   end
 
-  gemfile.platforms :ruby, :mswin, :mingw do
-    gem 'pg', '~> 0.21'
+  platforms :ruby, :windows do
+    gem 'pg', '~> 1.5.6'
   end
 end
 ```
@@ -195,15 +193,12 @@ Thus you'd probably be best served with inspecting the actual implementation of 
 
 #### Implementation
 
-- [ActiveRecord Base](https://github.com/CanCanCommunity/cancancan/blob/main/lib/cancan/model_adapters/active_record_adapter.rb)
-- [ActiveRecord 4](https://github.com/CanCanCommunity/cancancan/blob/main/lib/cancan/model_adapters/active_record_4_adapter.rb)
-- [ActiveRecord 5](https://github.com/CanCanCommunity/cancancan/blob/main/lib/cancan/model_adapters/active_record_5_adapter.rb)
+- [ActiveRecord](https://github.com/CanCanCommunity/cancancan/blob/main/lib/cancan/model_adapters/active_record_adapter.rb)
 
 #### Tests / Specs
 
-- [ActiveRecord Base](https://github.com/CanCanCommunity/cancancan/blob/main/spec/cancan/model_adapters/active_record_adapter_spec.rb)
-- [ActiveRecord 4](https://github.com/CanCanCommunity/cancancan/blob/main/spec/cancan/model_adapters/active_record_4_adapter_spec.rb)
-- [ActiveRecord 5](https://github.com/CanCanCommunity/cancancan/blob/main/spec/cancan/model_adapters/active_record_5_adapter_spec.rb)
+- [ActiveRecord](https://github.com/CanCanCommunity/cancancan/blob/main/spec/cancan/model_adapters/active_record_adapter_spec.rb)
+- [ActiveRecord enums](https://github.com/CanCanCommunity/cancancan/blob/main/spec/cancan/model_adapters/active_record_adapter_enum_spec.rb)
 
 **Mongoid, the adapter used in this entry as an example, can be found at:**
 

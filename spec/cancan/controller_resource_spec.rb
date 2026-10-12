@@ -108,7 +108,7 @@ describe CanCan::ControllerResource do
         class Model < ::Model; end
       end
       params['sub_model'] = { name: 'foobar' }
-      resource = CanCan::ControllerResource.new(controller, class: ::Sub::Model)
+      resource = CanCan::ControllerResource.new(controller, class: Sub::Model)
       resource.load_resource
       expect(controller.instance_variable_get(:@model).name).to eq('foobar')
     end
@@ -530,7 +530,7 @@ describe CanCan::ControllerResource do
       model = Sub::Model.new
       allow(Sub::Model).to receive(:find).with('123') { model }
 
-      resource = CanCan::ControllerResource.new(controller, class: ::Sub::Model)
+      resource = CanCan::ControllerResource.new(controller, class: Sub::Model)
       resource.load_resource
       expect(controller.instance_variable_get(:@model)).to eq(model)
     end

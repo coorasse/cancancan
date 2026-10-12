@@ -2,6 +2,7 @@
 
 ### Breaking changes
 
+* Drop support for Ruby < 3.2 and Rails < 8.0. The `ActiveRecord4Adapter` and `ActiveRecord5Adapter` classes are merged into `ActiveRecordAdapter`, and `:subquery` is always the default `accessible_by_strategy`. ([@coorasse][])
 * [#796](https://github.com/CanCanCommunity/cancancan/pull/796): The RSpec matcher raises `CanCan::ImplementationRemoved` when negated with several actions, as in `expect(ability).not_to be_able_to(%i[read update], article)`. It passed as soon as one action was forbidden, which was often misread as all actions being forbidden. Write one expectation per action instead. ([@coorasse][])
 * [#903](https://github.com/CanCanCommunity/cancancan/pull/903): `permitted_attributes` no longer includes the primary key when a rule has no attributes. It was documented to exclude it, but a bug kept `id` in the returned array. If your strong parameters rely on `permitted_attributes` to permit the primary key, add it explicitly, for example `params.require(:project).permit(:id, *current_ability.permitted_attributes(:update, @project))`. ([@coorasse][])
 
