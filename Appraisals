@@ -13,7 +13,7 @@
     end
 
     platforms :ruby, :windows do
-      gem 'pg', '~> 1.5.6'
+      gem 'pg'
       gem 'sqlite3', '>= 2.1'
     end
   end
@@ -33,7 +33,7 @@ appraise 'activerecord_main' do
   end
 
   platforms :ruby, :windows do
-    gem 'pg', '~> 1.5.6'
+    gem 'pg'
     gem 'sqlite3', '>= 2.1'
   end
 end

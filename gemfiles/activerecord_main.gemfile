@@ -22,7 +22,7 @@ platforms :jruby do
 end
 
 platforms :ruby, :windows do
-  gem "pg", "~> 1.5.6"
+  gem "pg"
   gem "sqlite3", ">= 2.1"
 end
 
