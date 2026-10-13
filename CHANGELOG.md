@@ -6,6 +6,10 @@
 * [#796](https://github.com/CanCanCommunity/cancancan/pull/796): The RSpec matcher raises `CanCan::ImplementationRemoved` when negated with several actions, as in `expect(ability).not_to be_able_to(%i[read update], article)`. It passed as soon as one action was forbidden, which was often misread as all actions being forbidden. Write one expectation per action instead. ([@coorasse][])
 * [#903](https://github.com/CanCanCommunity/cancancan/pull/903): `permitted_attributes` no longer includes the primary key when a rule has no attributes. It was documented to exclude it, but a bug kept `id` in the returned array. If your strong parameters rely on `permitted_attributes` to permit the primary key, add it explicitly, for example `params.require(:project).permit(:id, *current_ability.permitted_attributes(:update, @project))`. ([@coorasse][])
 
+### Other changes
+
+* [#915](https://github.com/CanCanCommunity/cancancan/pull/915): Check the conditions on an association that is not loaded with one query in `can?`, instead of loading all of its records: `can :read, Author, books: { user: user }` no longer loads every book of the author. An association that is already loaded is still checked in memory without queries. **WARNING**: the keys below such an association must be columns or associations, as `accessible_by` requires, and NULL columns of the records below it are matched as in `accessible_by`. ([@oboxodo][], [@coorasse][])
+
 ## 3.7.0
 
 * Merge the `ControllerResourceLoader`, `ControllerResourceBuilder`, `ControllerResourceFinder`, `ControllerResourceNameFinder` and `ControllerResourceSanitizer` modules into `CanCan::ControllerResource`, and call the params method of the controller only once per request: it was called once more for every attribute set by the conditions of the ability. **WARNING**: the five modules no longer exist; override their methods in a subclass of `CanCan::ControllerResource` instead. ([@coorasse][])
@@ -777,6 +781,7 @@ Please read the [guide on migrating from CanCanCan 2.x to 3.0](https://github.co
 [@jaredbeck]: https://github.com/jaredbeck
 [@NikosVlagoidis]: https://github.com/NikosVlagoidis
 [@olistik]: https://github.com/olistik
+[@oboxodo]: https://github.com/oboxodo
 [@takayamaki]: https://github.com/takayamaki
 [@sjoulbak]: https://github.com/sjoulbak
 [@0llirocks]: https://github.com/0llirocks

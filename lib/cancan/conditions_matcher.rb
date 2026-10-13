@@ -110,11 +110,32 @@ module CanCan
     end
 
     def hash_condition_match?(attribute, value)
-      if attribute.is_a?(Array) || (defined?(ActiveRecord) && attribute.is_a?(ActiveRecord::Relation))
+      if unloaded_relation?(attribute)
+        relation_matches_condition_hash?(attribute, value)
+      elsif attribute.is_a?(Array) || relation?(attribute)
         array_like_matches_condition_hash?(attribute, value)
       else
         attribute && matches_conditions_hash?(attribute, value)
       end
+    end
+
+    def relation?(attribute)
+      defined?(ActiveRecord) && attribute.is_a?(ActiveRecord::Relation)
+    end
+
+    def unloaded_relation?(attribute)
+      relation?(attribute) && !attribute.loaded?
+    end
+
+    # The records of an association that is not loaded are not loaded to check the conditions: the query that
+    # `accessible_by` builds for them runs in the scope of the association instead.
+    def relation_matches_condition_hash?(relation, conditions)
+      rule = Rule.new(true, :read, relation.klass, conditions)
+      adapter = model_adapter(relation.klass).new(relation.klass, [rule])
+      return true if relation.scoping { adapter.database_records }.exists?
+
+      # `nil` values match an association without records, as in array_like_matches_condition_hash?
+      !conditions.values.empty? && conditions.values.all?(&:nil?) && !relation.exists?
     end
 
     def array_like_matches_condition_hash?(attribute, value)

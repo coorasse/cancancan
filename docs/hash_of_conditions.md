@@ -110,4 +110,20 @@ end
 can :manage, Part, service: { account: { user: user } }
 ```
 
+## Collection associations
+
+`can?` does not load the records of a `has_many` or `has_and_belongs_to_many` association to check the conditions
+below it. When the association is not loaded, the conditions are checked with one query, the same one that
+`accessible_by` would build:
+
+```ruby
+can :read, Author, books: { user: user }
+
+can? :read, author # SELECT 1 FROM books WHERE books.author_id = ? AND books.user_id = ? LIMIT 1
+author.books.loaded? # => false
+```
+
+When the association is already loaded, for example through `includes`, the loaded records are checked in memory
+and no query runs. The keys below such an association must be columns or associations, as for `accessible_by`.
+
 Let's now quickly see how to [Combine Abilities](./combine_abilities.md)

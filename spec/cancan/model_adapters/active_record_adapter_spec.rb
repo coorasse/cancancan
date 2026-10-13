@@ -127,6 +127,7 @@ RSpec.describe CanCan::ModelAdapters::ActiveRecordAdapter do
       has_many :mentions
       has_many :mentioned_articles, through: :mentions, source: :article
       has_many :comments, through: :articles
+      has_many :published_articles, -> { where(published: true) }, class_name: 'Article'
     end
 
     (@ability = double).extend(CanCan::Ability)
@@ -955,6 +956,115 @@ RSpec.describe CanCan::ModelAdapters::ActiveRecordAdapter do
   WHERE "articles"."id" IN (SELECT "articles"."id" FROM "articles"
     LEFT OUTER JOIN "comments" ON "comments"."article_id" = "articles"."id"
     WHERE "articles"."secret" = #{true_v} AND "comments"."id" IS NULL)))
+  end
+
+  CanCan.valid_accessible_by_strategies.each do |strategy|
+    context "when a condition is on an association that is not loaded, with #{strategy} strategy" do
+      def count_queries(&block)
+        count = 0
+        counter = lambda { |_name, _started, _finished, _unique_id, payload|
+          count += 1 unless payload[:name].in?(%w[CACHE SCHEMA])
+        }
+        ActiveSupport::Notifications.subscribed(counter, 'sql.active_record', &block)
+        count
+      end
+
+      before do
+        CanCan.accessible_by_strategy = strategy
+      end
+
+      it 'checks the conditions with one query instead of loading the records' do
+        @ability.can :read, Article, comments: { spam: true }
+        article = Article.create!
+        Comment.create!(article: article, spam: false)
+        Comment.create!(article: article, spam: true)
+
+        expect(count_queries { expect(@ability.can?(:read, article)).to be(true) }).to eq(1)
+        expect(article.comments).not_to be_loaded
+      end
+
+      it 'does not match when no record of the association matches' do
+        @ability.can :read, Article, comments: { spam: true }
+        article = Article.create!
+        Comment.create!(article: article, spam: false)
+
+        expect(@ability.can?(:read, article)).to be(false)
+        expect(article.comments).not_to be_loaded
+      end
+
+      it 'checks the records in memory when the association is loaded' do
+        @ability.can :read, Article, comments: { spam: true }
+        article = Article.create!
+        Comment.create!(article: article, spam: true)
+        article = Article.includes(:comments).find(article.id)
+
+        expect(count_queries { expect(@ability.can?(:read, article)).to be(true) }).to eq(0)
+      end
+
+      it 'joins the associations nested below the association' do
+        @ability.can :read, Project, comments: { article: { published: true } }
+        project = Project.create!
+        Comment.create!(project: project, article: Article.create!(published: false))
+        expect(@ability.can?(:read, project)).to be(false)
+
+        Comment.create!(project: project, article: Article.create!(published: true))
+        expect(@ability.can?(:read, project)).to be(true)
+        expect(project.comments).not_to be_loaded
+      end
+
+      it 'keeps the scope of the association' do
+        @ability.can :read, User, published_articles: { name: 'cancan' }
+        user = User.create!
+        Article.create!(user: user, name: 'cancan', published: false)
+        expect(@ability.can?(:read, user)).to be(false)
+
+        Article.create!(user: user, name: 'cancan', published: true)
+        expect(@ability.can?(:read, user)).to be(true)
+      end
+
+      it 'supports a has_many through association' do
+        @ability.can :read, User, comments: { spam: true }
+        user = User.create!
+        article = Article.create!(user: user)
+        Comment.create!(article: article, spam: false)
+        expect(@ability.can?(:read, user)).to be(false)
+
+        Comment.create!(article: article, spam: true)
+        expect(@ability.can?(:read, user)).to be(true)
+        expect(user.comments).not_to be_loaded
+      end
+
+      it 'matches an association without records when the values are nil' do
+        @ability.can :read, Article, comments: { id: nil }
+        article = Article.create!
+        expect(@ability.can?(:read, article)).to be(true)
+
+        Comment.create!(article: article)
+        expect(@ability.can?(:read, Article.find(article.id))).to be(false)
+      end
+
+      it 'matches a record with a NULL column when the value is nil' do
+        @ability.can :read, Article, comments: { spam: nil }
+        article = Article.create!
+        Comment.create!(article: article, spam: nil)
+        expect(@ability.can?(:read, article)).to be(true)
+
+        Comment.find_by(article: article).update!(spam: false)
+        expect(@ability.can?(:read, Article.find(article.id))).to be(false)
+      end
+
+      it 'applies to the conditions of a cannot rule' do
+        @ability.can :read, Article
+        @ability.cannot :read, Article, comments: { spam: true }
+        article = Article.create!
+        Comment.create!(article: article, spam: false)
+        expect(@ability.can?(:read, article)).to be(true)
+
+        Comment.create!(article: article, spam: true)
+        expect(@ability.can?(:read, Article.find(article.id))).to be(false)
+        expect(article.comments).not_to be_loaded
+      end
+    end
   end
 
   it 'allows an empty array to be used as a condition for a belongs_to; this never returns true' do
