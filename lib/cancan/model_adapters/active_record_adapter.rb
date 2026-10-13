@@ -174,6 +174,13 @@ module CanCan
         end
       end
 
+      # The records of a scope as an IN subquery on the primary key, as an Arel node. Every column of a composite
+      # primary key is compared, as a tuple.
+      def primary_key_in(scope)
+        columns = Array(@model_class.primary_key).map { |column| @model_class.arel_table[column] }
+        Arel::Nodes::In.new(columns.one? ? columns.first : group(columns), subquery(scope, columns).ast)
+      end
+
       private
 
       # Active Record cannot find the model of an aliased table in a hash of conditions,
@@ -191,8 +198,18 @@ module CanCan
         if (scope.values.keys - %i[where order references]).empty?
           scope.where_clause.ast if scope.where_clause.any?
         else
-          hash_conditions(@model_class.primary_key => scope.except(:select))
+          primary_key_in(scope)
         end
+      end
+
+      # Eager loading joins the included associations only when the records are loaded, so a scope with
+      # `includes` and `references` joins them explicitly to be used as a subquery.
+      def subquery(scope, columns)
+        if scope.eager_loading?
+          scope = scope.except(:includes, :eager_load, :preload)
+                       .left_joins(scope.eager_load_values | scope.includes_values)
+        end
+        scope.reselect(*columns).arel
       end
 
       # The conditions of all the rules as an Arel node, or :all and :none when every record or no record

@@ -6,10 +6,7 @@ module CanCan
       class JoinedAliasExistsSubquery < Base
         def execute!
           model_class
-            .joins(
-              "JOIN #{quoted_table_name} AS #{quoted_aliased_table_name} ON " \
-              "#{quoted_aliased_table_name}.#{quoted_primary_key} = #{quoted_table_name}.#{quoted_primary_key}"
-            )
+            .joins(aliased_table_join)
             .where("EXISTS (#{joined_alias_exists_subquery_inner_query.to_sql})")
         end
 
@@ -17,10 +14,7 @@ module CanCan
           joined_records
             .select('1')
             .where(where_conditions)
-            .where(
-              "#{quoted_table_name}.#{quoted_primary_key} = " \
-              "#{quoted_aliased_table_name}.#{quoted_primary_key}"
-            )
+            .where(matching_primary_keys(quoted_table_name, quoted_aliased_table_name))
             .limit(1)
         end
       end

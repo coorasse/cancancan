@@ -6,10 +6,7 @@ module CanCan
       class JoinedAliasEachRuleAsExistsSubquery < Base
         def execute!
           model_class
-            .joins(
-              "JOIN #{quoted_table_name} AS #{quoted_aliased_table_name} ON " \
-              "#{quoted_aliased_table_name}.#{quoted_primary_key} = #{quoted_table_name}.#{quoted_primary_key}"
-            )
+            .joins(aliased_table_join)
             .where(double_exists_sql)
         end
 
@@ -35,10 +32,7 @@ module CanCan
             .select('1')
             .joins(joins_hash)
             .left_joins(left_joins_hash)
-            .where(
-              "#{quoted_table_name}.#{quoted_primary_key} = " \
-              "#{quoted_aliased_table_name}.#{quoted_primary_key}"
-            )
+            .where(matching_primary_keys(quoted_table_name, quoted_aliased_table_name))
             .where(rule_where_conditions)
             .limit(1)
         end

@@ -93,6 +93,7 @@
 
 * [#808](https://github.com/CanCanCommunity/cancancan/pull/808): Add `:if` and `:unless` options to `skip_load_resource`, `skip_authorize_resource` and `skip_load_and_authorize_resource`, as `check_authorization` already supports. ([@ammarghaus][])
 * [#915](https://github.com/CanCanCommunity/cancancan/pull/915): Check the conditions on an association that is not loaded with one query in `can?`, instead of loading all of its records: `can :read, Author, books: { user: user }` no longer loads every book of the author. An association that is already loaded is still checked in memory without queries. **WARNING**: the keys below such an association must be columns or associations, as `accessible_by` requires, and NULL columns of the records below it are matched as in `accessible_by`. ([@oboxodo][], [@coorasse][])
+* [#918](https://github.com/CanCanCommunity/cancancan/pull/918): Support models with a composite primary key in `accessible_by`: the subqueries of the `:subquery`, `:joined_alias_exists_subquery` and `:joined_alias_each_rule_as_exists_subquery` strategies and of the rules with a scope compare every column of the primary key. ([@coorasse][])
 
 ## 3.7.0
 

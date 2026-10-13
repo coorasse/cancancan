@@ -1832,6 +1832,63 @@ RSpec.describe CanCan::ModelAdapters::ActiveRecordAdapter do
         expect(CustomPkTransaction.accessible_by(ability)).to match_array([transaction1])
       end
     end
+
+    context "when a model has a composite primary key with #{strategy} strategy" do
+      before :each do
+        CanCan.accessible_by_strategy = strategy
+      end
+      before do
+        ActiveRecord::Schema.define do
+          create_table(:customers) do |t|
+            t.boolean :vip
+          end
+
+          create_table(:orders, primary_key: %i[shop_id number]) do |t|
+            t.integer :shop_id
+            t.integer :number
+            t.integer :customer_id
+          end
+        end
+
+        class Customer < ActiveRecord::Base
+        end
+
+        class Order < ActiveRecord::Base
+          self.primary_key = %i[shop_id number]
+
+          belongs_to :customer
+        end
+      end
+
+      let(:vip) { Customer.create!(vip: true) }
+      let(:regular) { Customer.create!(vip: false) }
+      let!(:vip_order) { Order.create!(shop_id: 1, number: 1, customer: vip) }
+      let!(:regular_order) { Order.create!(shop_id: 1, number: 2, customer: regular) }
+      let!(:other_shop_order) { Order.create!(shop_id: 2, number: 1, customer: regular) }
+
+      it 'filters with a hash rule on an association' do
+        ability = Ability.new(nil)
+        ability.can :read, Order, customer: { vip: true }
+
+        expect(Order.accessible_by(ability)).to contain_exactly(vip_order)
+      end
+
+      it 'merges a scope with a join with a hash rule' do
+        ability = Ability.new(nil)
+        ability.can :read, Order, Order.joins(:customer).where(customers: { vip: true })
+        ability.can :read, Order, shop_id: 2
+
+        expect(Order.accessible_by(ability)).to contain_exactly(vip_order, other_shop_order)
+      end
+
+      it 'negates a scope with a join of a cannot rule' do
+        ability = Ability.new(nil)
+        ability.can :read, Order
+        ability.cannot :read, Order, Order.joins(:customer).where(customers: { vip: false })
+
+        expect(Order.accessible_by(ability)).to contain_exactly(vip_order)
+      end
+    end
   end
 
   context 'when a table has json type column' do
