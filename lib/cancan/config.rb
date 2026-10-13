@@ -28,6 +28,42 @@ module CanCan
     end
   end
 
+  # Since 4.0, a `cannot` rule with a scope excludes the records of the scope. It used to select the records
+  # that remain accessible, so such rules must be reviewed when upgrading. Until this is set to false, every
+  # `cannot` rule with a scope is reported once with a warning.
+  #
+  #   # config/initializers/cancan.rb
+  #   CanCan.warn_on_cannot_rules_with_scope = false
+  def self.warn_on_cannot_rules_with_scope
+    return @warn_on_cannot_rules_with_scope if defined?(@warn_on_cannot_rules_with_scope)
+
+    @warn_on_cannot_rules_with_scope = true
+  end
+
+  def self.warn_on_cannot_rules_with_scope=(value)
+    @warn_on_cannot_rules_with_scope = value
+  end
+
+  @warned_cannot_rules_with_scope = Set.new
+
+  # Reports a cannot rule with a scope once per place it is defined. The locations are the frames of the caller
+  # of `cannot`, so rules defined through a helper method are reported for each call of the helper.
+  def self.warn_on_cannot_rule_with_scope(rule, locations)
+    return unless warn_on_cannot_rules_with_scope && rule.with_scope?
+    return unless @warned_cannot_rules_with_scope.add?([locations.map(&:to_s), rule.actions, rule.subjects])
+
+    Kernel.warn cannot_rule_with_scope_warning(rule, locations.first)
+  end
+
+  def self.cannot_rule_with_scope_warning(rule, location)
+    "CanCanCan 4.0: the scope of the cannot rule at #{location.path}:#{location.lineno} selects the records that " \
+      "cannot be #{rule.actions.join(', ')}, while it used to select the accessible ones: " \
+      "cannot #{rule.actions.map(&:inspect).join(', ')}, #{rule.subjects.join(', ')}, #{rule.conditions.to_sql}. " \
+      'Review the rule and set CanCan.warn_on_cannot_rules_with_scope = false. See ' \
+      'https://github.com/CanCanCommunity/cancancan/blob/develop/docs/define_abilities_with_blocks.md' \
+      '#block-conditions-with-activerecord-scopes'
+  end
+
   # Determines how CanCan should build queries when calling accessible_by,
   # if the query will contain a join. The default strategy is `:subquery`.
   #

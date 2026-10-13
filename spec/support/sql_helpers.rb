@@ -13,6 +13,15 @@ module SQLHelpers
     ENV['DB'] == 'postgres'
   end
 
+  def count_queries(&)
+    count = 0
+    counter = lambda { |_name, _started, _finished, _unique_id, payload|
+      count += 1 unless payload[:name].in? %w[CACHE SCHEMA]
+    }
+    ActiveSupport::Notifications.subscribed(counter, 'sql.active_record', &)
+    count
+  end
+
   def connect_db
     # ActiveRecord::Base.logger = Logger.new(STDOUT)
     ActiveRecord::Base.logger = nil

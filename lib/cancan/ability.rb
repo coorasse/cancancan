@@ -158,7 +158,9 @@ module CanCan
     #   end
     #
     def cannot(action = nil, subject = nil, *attributes_and_conditions, &)
-      add_rule(Rule.new(false, action, subject, *attributes_and_conditions, &))
+      rule = Rule.new(false, action, subject, *attributes_and_conditions, &)
+      CanCan.warn_on_cannot_rule_with_scope(rule, caller_locations(1, 2)) if rule.with_scope?
+      add_rule(rule)
     end
 
     # User shouldn't specify targets with names of real actions or it will cause Seg fault

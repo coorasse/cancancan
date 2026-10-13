@@ -63,15 +63,35 @@ can :read, Article, Article.published do |article|
 end
 ```
 
-This is really useful if you have complex conditions which require `joins`. A couple of caveats:
+This is really useful if you have complex conditions which require `joins`.
 
-- You cannot use this with multiple `can` definitions that match the same action and model since it is not possible to combine them. An exception will be raised when that is the case.
-- If you use this with `cannot`, the scope needs to be the inverse since it's passed directly through. For example, if you don't want someone to read discontinued products the scope will need to fetch non discontinued ones:
+The scope can be combined with other `can` and `cannot` definitions for the same action and model, like hash
+conditions: the records are the ones returned by any of the `can` scopes or conditions, minus the ones returned by
+the `cannot` scopes or conditions. So, if you don't want someone to read discontinued products, the scope of the
+`cannot` definition fetches the discontinued ones:
 
 ```ruby
-cannot :read, Product, Product.where(discontinued: false) do |product|
+can :read, Product
+cannot :read, Product, Product.where(discontinued: true) do |product|
   product.discontinued?
 end
 ```
+
+Until version 4.0 the scope of a `cannot` definition selected the records that remained accessible, so it had to be
+inverted. When upgrading, every `cannot` definition with a scope is reported once with a warning. Review them and
+disable the warning:
+
+```ruby
+# config/initializers/cancan.rb
+CanCan.warn_on_cannot_rules_with_scope = false
+```
+
+A couple of caveats:
+
+- A scope with `joins`, `limit` or other clauses that select its records is used as a subquery on the primary
+  key, as in `id IN (SELECT id FROM ...)`, so that these clauses apply to that definition only. MySQL does not
+  support a `LIMIT` in such a subquery, so a scope with a limit cannot be used as a condition there.
+- Only the records of the scope matter: its `includes`, `order` and `select` do not apply to the
+  `accessible_by` query.
 
 It is only recommended to use scopes if a situation is too complex for a hash condition.

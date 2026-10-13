@@ -50,15 +50,6 @@ RSpec.describe CanCan::Rule do
 
   unless RUBY_ENGINE == 'jruby'
     describe '#inspect' do
-      def count_queries(&block)
-        count = 0
-        counter_f = lambda { |_name, _started, _finished, _unique_id, payload|
-          count += 1 unless payload[:name].in? %w[CACHE SCHEMA]
-        }
-        ActiveSupport::Notifications.subscribed(counter_f, 'sql.active_record', &block)
-        count
-      end
-
       before do
         connect_db
         ActiveRecord::Migration.verbose = false
@@ -123,6 +114,28 @@ RSpec.describe CanCan::Rule do
 
       it 'is false when the conditions are a scope' do
         rule = CanCan::Rule.new(true, :read, Vehicle, Vehicle.where(name: 'foo'))
+        expect(rule).not_to be_catch_all
+      end
+
+      it 'is true when the conditions are a scope without conditions' do
+        rule = CanCan::Rule.new(true, :read, Vehicle, Vehicle.order(:name))
+        expect(rule).to be_catch_all
+      end
+
+      it 'is false when the conditions are a scope with conditions on another table' do
+        rule = CanCan::Rule.new(true, :read, Vehicle, Vehicle.where('1 = 1'))
+        expect(rule).not_to be_catch_all
+      end
+
+      it 'is false when the conditions are a scope with a join' do
+        stub_const('Wheel', Class.new(ActiveRecord::Base))
+        Vehicle.has_many :wheels
+        rule = CanCan::Rule.new(true, :read, Vehicle, Vehicle.joins(:wheels))
+        expect(rule).not_to be_catch_all
+      end
+
+      it 'is false when the conditions are a scope with a limit' do
+        rule = CanCan::Rule.new(true, :read, Vehicle, Vehicle.limit(1))
         expect(rule).not_to be_catch_all
       end
 

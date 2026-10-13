@@ -27,9 +27,14 @@ RSpec.configure do |config|
 
   config.include SQLHelpers
 
+  config.before :suite do
+    CanCan.warn_on_cannot_rules_with_scope = false
+  end
+
   config.after :each do
     CanCan.accessible_by_strategy = CanCan.default_accessible_by_strategy
     CanCan.rules_compressor_enabled = true
+    CanCan.warn_on_cannot_rules_with_scope = false
   end
 end
 

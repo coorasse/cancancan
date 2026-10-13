@@ -113,8 +113,8 @@ module CanCan
         end
       end
 
-      # Returns conditions intended to be used inside a database query. Normally you will not call this
-      # method directly, but instead go through ModelAdditions#accessible_by.
+      # Returns the conditions of the rules for a database query. Normally you will not call this method
+      # directly, but instead go through ModelAdditions#accessible_by.
       #
       # If there is only one "can" definition, a hash of conditions will be returned matching the one defined.
       #
@@ -126,33 +126,27 @@ module CanCan
       #   can :manage, User, :id => 1
       #   can :manage, User, :manager_id => 1
       #   cannot :manage, User, :self_managed => true
-      #   query(:manage, User).conditions # => "not (self_managed = 't') AND ((manager_id = 1) OR (id = 1))"
+      #   query(:manage, User).conditions
+      #   # => "("self_managed" = 't') IS NOT TRUE AND (("manager_id" = 1) OR ("id" = 1))"
       #
       def conditions
-        extract_conditions(ConditionsExtractor.new(@model_class, joins))
-      end
+        return single_rule_conditions if single_can_rule?
 
-      def extract_multiple_conditions(conditions_extractor, rules)
-        sql, = rules.reverse.inject([false_sql, false]) do |(sql, or_chain), rule|
-          conditions_hash = conditions_extractor.tableize_conditions(rule.conditions).dup
-          merge_conditions(sql, or_chain, conditions_hash, rule.base_behavior, conditions_extractor)
+        case where_conditions
+        when :all then {}
+        when :none then '1=0'
+        else to_sql(where_conditions)
         end
-        sql
       end
 
       def database_records
-        if override_scope
-          merge_override_scope
-        else
-          build_relation(where_conditions)
-        end
-      end
+        return @model_class.none if where_conditions == :none
+        return @model_class.all if where_conditions == :all
 
-      def build_relation(*where_conditions)
-        relation = @model_class.where(*where_conditions)
+        relation = @model_class.where(where_node)
         return relation unless joins.present?
 
-        strategy_class.new(adapter: self, relation: relation, where_conditions: where_conditions).execute!
+        strategy_class.new(adapter: self, relation: relation, where_conditions: where_node).execute!
       end
 
       # Returns the associations used in conditions for the :joins option of a search.
@@ -165,36 +159,106 @@ module CanCan
         deep_clean(joins_hash) unless joins_hash.empty?
       end
 
+      # The conditions of a rule as an Arel node, or nil when the rule has no conditions.
+      #
+      # The nodes come from the Active Record internals that `where` relies on: `predicate_builder`, `where_clause`
+      # and the Arel nodes. They are not public API, but have been stable since Rails 7.1 and are covered by the
+      # test suite on every supported Rails version, including main.
+      def rule_conditions(rule, conditions_extractor = ConditionsExtractor.new(@model_class, joins))
+        if rule.with_scope?
+          scope_conditions(rule.conditions)
+        elsif rule.conditions.is_a?(Hash)
+          hash_conditions(conditions_extractor.tableize_conditions(rule.conditions), conditions_extractor)
+        elsif rule.conditions.present?
+          Arel.sql(@model_class.sanitize_sql(rule.conditions))
+        end
+      end
+
       private
+
+      # Active Record cannot find the model of an aliased table in a hash of conditions,
+      # so the conditions on associations are built with the model of each table.
+      def hash_conditions(conditions, conditions_extractor = nil)
+        return if conditions.empty?
+
+        Arel::Nodes::And.new(predicates(conditions, conditions_extractor))
+      end
+
+      # The conditions of a scope are used as they are. A scope with joins, a limit or other clauses that select
+      # its records is used as a subquery on the primary key, so that these clauses do not apply to the records
+      # of the other rules.
+      def scope_conditions(scope)
+        if (scope.values.keys - %i[where order references]).empty?
+          scope.where_clause.ast if scope.where_clause.any?
+        else
+          hash_conditions(@model_class.primary_key => scope.except(:select))
+        end
+      end
+
+      # The conditions of all the rules as an Arel node, or :all and :none when every record or no record
+      # is accessible. The rules are folded in the order they were defined: a `can` rule adds its records
+      # to the ones of the previous rules, a `cannot` rule removes its records from them.
+      def where_conditions
+        @where_conditions ||= begin
+          conditions_extractor = ConditionsExtractor.new(@model_class, joins)
+          @compressed_rules.reverse.inject(:none) do |previous, rule|
+            merge_rule(previous, rule, rule_conditions(rule, conditions_extractor))
+          end
+        end
+      end
+
+      # A chain of ORs is grouped, so that it keeps its precedence next to the other conditions of the query.
+      def where_node
+        where_conditions.is_a?(Arel::Nodes::Or) ? group(where_conditions) : where_conditions
+      end
+
+      def merge_rule(previous, rule, node)
+        return rule.base_behavior ? :all : :none if node.nil?
+
+        if rule.base_behavior
+          previous == :none ? node : or_conditions(node, previous)
+        else
+          previous == :all ? not_true(node) : and_conditions(node, previous)
+        end
+      end
+
+      def and_conditions(node, previous)
+        return :none if previous == :none
+
+        Arel::Nodes::And.new([not_true(node), group(previous)])
+      end
+
+      # Consecutive `can` rules are joined in a flat chain of ORs, so that the nesting of the query only grows
+      # when `can` and `cannot` rules alternate. Deeply nested conditions overflow the parser of SQLite.
+      def or_conditions(node, previous)
+        return :all if previous == :all
+
+        children = previous.is_a?(Arel::Nodes::Or) ? previous.children : [group(previous)]
+        Arel::Nodes::Or.new([group(node), *children])
+      end
+
+      # A cannot rule only excludes the records that match its conditions: NULL does not match.
+      def not_true(node)
+        Arel::Nodes::InfixOperation.new('IS NOT', group(node), Arel.sql('TRUE'))
+      end
+
+      def group(node)
+        Arel::Nodes::Grouping.new(node)
+      end
+
+      def single_can_rule?
+        @compressed_rules.size == 1 && @compressed_rules.first.base_behavior && !@compressed_rules.first.with_scope?
+      end
+
+      def single_rule_conditions
+        ConditionsExtractor.new(@model_class, joins).tableize_conditions(@compressed_rules.first.conditions).dup
+      end
 
       def strategy_class
         strategy = CanCan.accessible_by_strategy
         return strategy if strategy.is_a?(Class)
 
         CanCan::ModelAdapters::Strategies.const_get(strategy.to_s.camelize)
-      end
-
-      def extract_conditions(conditions_extractor)
-        if @compressed_rules.size == 1 && @compressed_rules.first.base_behavior
-          # Return the conditions directly if there's just one definition
-          conditions_extractor.tableize_conditions(@compressed_rules.first.conditions).dup
-        else
-          extract_multiple_conditions(conditions_extractor, @compressed_rules)
-        end
-      end
-
-      # Active Record cannot find the model of an aliased table in a hash of conditions,
-      # so the conditions on associations are converted to SQL with the model of each table.
-      def where_conditions
-        conditions_extractor = ConditionsExtractor.new(@model_class, joins)
-        conditions = extract_conditions(conditions_extractor)
-        return conditions unless conditions.is_a?(Hash) && conditions.values.any? { |value| value.is_a?(Hash) }
-
-        where_node(conditions, conditions_extractor)
-      end
-
-      def where_node(conditions, conditions_extractor)
-        Arel::Nodes::And.new(predicates(conditions, conditions_extractor))
       end
 
       # Removes empty hashes and moves everything into arrays.
@@ -213,85 +277,6 @@ module CanCan
         end
       end
 
-      # `merge` replaces the conditions of the base relation on the columns the scope also constrains,
-      # so the conditions it dropped, like the one of an association like `category.articles`, are applied again.
-      # The conditions the scope removes with `unscope`, like the ones of a default scope, stay removed.
-      def merge_override_scope
-        merged = @model_class.where(nil).merge(override_scope)
-        base = @model_class.where(nil)
-        base = base.unscope(*override_scope.unscope_values) if override_scope.unscope_values.any?
-        dropped = base.where_clause.send(:predicates) - merged.where_clause.send(:predicates)
-        dropped.inject(merged) { |relation, predicate| relation.where(predicate) }
-      end
-
-      def override_scope
-        conditions = @compressed_rules.map(&:conditions).compact
-        return unless conditions.any?(ActiveRecord::Relation)
-        return conditions.first if conditions.size == 1
-
-        raise_override_scope_error
-      end
-
-      def raise_override_scope_error
-        rule_found = @compressed_rules.detect { |rule| rule.conditions.is_a?(ActiveRecord::Relation) }
-        raise Error,
-              'Unable to merge an Active Record scope with other conditions. ' \
-              "Instead use a hash or SQL for #{rule_found.actions.first} #{rule_found.subjects.first} ability."
-      end
-
-      # Returns the merged sql and whether it is a flat chain of OR conditions.
-      def merge_conditions(sql, or_chain, conditions_hash, behavior, conditions_extractor)
-        if conditions_hash.blank?
-          [behavior ? true_sql : false_sql, false]
-        else
-          merge_non_empty_conditions(behavior, sanitize_sql(conditions_hash, conditions_extractor), sql, or_chain)
-        end
-      end
-
-      # Consecutive `can` rules are joined in a flat chain of ORs, so that the nesting of the query only grows
-      # when `can` and `cannot` rules alternate. Deeply nested conditions overflow the parser of SQLite.
-      def merge_non_empty_conditions(behavior, conditions, sql, or_chain)
-        case sql
-        when true_sql
-          behavior ? [true_sql, false] : [not_conditions(conditions), false]
-        when false_sql
-          behavior ? [conditions, false] : [false_sql, false]
-        else
-          merge_with_previous_conditions(behavior, conditions, sql, or_chain)
-        end
-      end
-
-      def merge_with_previous_conditions(behavior, conditions, sql, or_chain)
-        if behavior
-          [or_conditions(conditions, sql, or_chain), true]
-        else
-          ["#{not_conditions(conditions)} AND (#{sql})", false]
-        end
-      end
-
-      # A cannot rule only excludes the records that match its conditions: NULL does not match.
-      def not_conditions(conditions)
-        "(#{conditions}) IS NOT TRUE"
-      end
-
-      def or_conditions(conditions, sql, or_chain)
-        "(#{conditions}) OR #{or_chain ? sql : "(#{sql})"}"
-      end
-
-      def false_sql
-        sanitize_sql(['?=?', true, false])
-      end
-
-      def true_sql
-        sanitize_sql(['?=?', true, true])
-      end
-
-      def sanitize_sql(conditions, conditions_extractor = nil)
-        return @model_class.send(:sanitize_sql, conditions) unless conditions.is_a?(Hash)
-
-        predicates(conditions, conditions_extractor).map { |node| visit_node(node) }.join(' AND ')
-      end
-
       def predicates(conditions, conditions_extractor)
         conditions.flat_map do |key, value|
           table_class = value.is_a?(Hash) && conditions_extractor&.model_class_for(key)
@@ -307,7 +292,7 @@ module CanCan
         ActiveRecord::PredicateBuilder.new(ActiveRecord::TableMetadata.new(model_class, table))
       end
 
-      def visit_node(node)
+      def to_sql(node)
         connection = @model_class.lease_connection
         collector = Arel::Collectors::SubstituteBinds.new(connection, Arel::Collectors::SQLString.new)
         connection.visitor.accept(node, collector).value

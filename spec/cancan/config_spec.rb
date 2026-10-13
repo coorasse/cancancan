@@ -115,4 +115,67 @@ RSpec.describe CanCan do
       expect(strategy_in_other_fiber).to eq(:subquery)
     end
   end
+
+  describe '.warn_on_cannot_rule_with_scope' do
+    before do
+      connect_db
+      ActiveRecord::Migration.verbose = false
+      ActiveRecord::Schema.define do
+        create_table(:products) do |t|
+          t.boolean :discontinued
+        end
+      end
+      stub_const('Product', Class.new(ActiveRecord::Base))
+      CanCan.warn_on_cannot_rules_with_scope = true
+    end
+
+    let(:ability) { Class.new { include CanCan::Ability }.new }
+
+    def capture_stderr
+      stderr = $stderr
+      $stderr = StringIO.new
+      yield
+      $stderr.string
+    ensure
+      $stderr = stderr
+    end
+
+    it 'warns once for a cannot rule with a scope' do
+      warnings = Array.new(2) do
+        capture_stderr { ability.cannot :read, Product, Product.where(discontinued: true) }
+      end
+      expect(warnings.first)
+        .to match(/the scope of the cannot rule at .*config_spec.rb:\d+ selects the records that cannot be read/)
+      expect(warnings.last).to be_empty
+    end
+
+    it 'warns for each rule defined through a helper method' do
+      ability_class = Class.new do
+        include CanCan::Ability
+
+        def initialize
+          forbid(Product.where(discontinued: true))
+          forbid(Product.where(discontinued: false))
+        end
+
+        def forbid(scope)
+          cannot :read, Product, scope
+        end
+      end
+      expect { ability_class.new }
+        .to output(/discontinued" = (TRUE|1).*\n.*discontinued" = (FALSE|0)/).to_stderr
+    end
+
+    it 'does not warn for a can rule with a scope or a cannot rule with a hash' do
+      expect do
+        ability.can :read, Product, Product.where(discontinued: false)
+        ability.cannot :read, Product, discontinued: true
+      end.not_to output.to_stderr
+    end
+
+    it 'does not warn when disabled' do
+      CanCan.warn_on_cannot_rules_with_scope = false
+      expect { ability.cannot :read, Product, Product.where(discontinued: true) }.not_to output.to_stderr
+    end
+  end
 end

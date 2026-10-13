@@ -6,12 +6,9 @@ module CanCan
 
         delegate(
           :compressed_rules,
-          :extract_multiple_conditions,
           :joins,
           :model_class,
-          :quoted_primary_key,
-          :quoted_aliased_table_name,
-          :quoted_table_name,
+          :rule_conditions,
           to: :adapter
         )
         delegate :connection, :quoted_primary_key, to: :model_class
@@ -21,6 +18,11 @@ module CanCan
           @adapter = adapter
           @relation = relation
           @where_conditions = where_conditions
+        end
+
+        # The records of the model with the joins of the rules, ignoring the scope `accessible_by` was called on.
+        def joined_records
+          model_class.unscoped { model_class.left_joins(joins) }
         end
 
         def aliased_table_name

@@ -14,11 +14,9 @@ module CanCan
         end
 
         def joined_alias_exists_subquery_inner_query
-          model_class
-            .unscoped
+          joined_records
             .select('1')
-            .left_joins(joins)
-            .where(*where_conditions)
+            .where(where_conditions)
             .where(
               "#{quoted_table_name}.#{quoted_primary_key} = " \
               "#{quoted_aliased_table_name}.#{quoted_primary_key}"

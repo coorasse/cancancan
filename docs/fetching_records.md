@@ -40,7 +40,9 @@ You can change the action by passing it as the second argument. Here we find onl
 @articles = Article.accessible_by(current_ability, :update)
 ```
 
-And this is just an ActiveRecord scope so other scopes and pagination can be chained onto it.
+And this is just an ActiveRecord scope so other scopes and pagination can be chained onto it. It can also be
+chained onto existing scopes: `current_user.articles.accessible_by(current_ability)` keeps the conditions of the
+association.
 
 ## Under the hood
 
@@ -63,8 +65,12 @@ a call to `Article.accessible_by(current_ability)` generates the following SQL
 ```sql
 SELECT *
 FROM articles
-WHERE (user_id = 1) OR (not (self_managed = 'true') AND (public = 'true'))
+WHERE (user_id = 1) OR ((self_managed = 'true') IS NOT TRUE AND (public = 'true'))
 ```
+
+The conditions of the rules are built with Arel, the query builder of Active Record, so rules defined with hash
+conditions, SQL fragments and [Active Record scopes](./define_abilities_with_blocks.md#block-conditions-with-activerecord-scopes)
+can be combined freely.
 
 The generation of the SQL query is a very complex task and probably the most powerful feature of CanCanCan.
 

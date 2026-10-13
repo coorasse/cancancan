@@ -10,7 +10,7 @@ RSpec.describe CanCan::ModelAdapters::ActiveRecordAdapter do
     ActiveRecord::Base.connection.quoted_false
   end
 
-  let(:false_condition) { "#{true_v}=#{false_v}" }
+  let(:false_condition) { '1=0' }
 
   before :each do
     connect_db
@@ -328,33 +328,159 @@ RSpec.describe CanCan::ModelAdapters::ActiveRecordAdapter do
         expect(articles).to match_array([article1])
       end
 
-      it 'does not apply again the conditions of the default scope that the scope for conditions removes' do
-        stub_const('PublicArticle', Class.new(ActiveRecord::Base) do
-          self.table_name = 'articles'
-          default_scope { where(secret: false) }
-        end)
-        @ability.can :read, PublicArticle, PublicArticle.unscope(where: :secret).where(published: true)
-        article1 = PublicArticle.create!(published: true, secret: false)
-        article2 = PublicArticle.create!(published: true, secret: true)
-        PublicArticle.create!(published: false, secret: false)
-
-        expect(PublicArticle.accessible_by(@ability)).to match_array([article1, article2])
-      end
-
-      it 'raises an exception when trying to merge scope with other conditions' do
+      it 'merges a scope with hash conditions' do
         @ability.can :read, Article, published: true
         @ability.can :read, Article, Article.where(secret: true)
-        expect { Article.accessible_by(@ability) }
-          .to raise_error(CanCan::Error,
-                          'Unable to merge an Active Record scope with other conditions. ' \
-                            'Instead use a hash or SQL for read Article ability.')
+        published = Article.create!(published: true, secret: false)
+        secret = Article.create!(published: false, secret: true)
+        Article.create!(published: false, secret: false)
+        expect(Article.accessible_by(@ability)).to contain_exactly(published, secret)
       end
 
-      it 'does not raise an exception when the rule with scope is suppressed' do
+      it 'merges several scopes' do
+        @ability.can :read, Article, Article.where(published: true)
+        @ability.can :read, Article, Article.where(secret: true)
+        @ability.cannot :read, Article, Article.where(priority: 1)
+        published = Article.create!(published: true, secret: false)
+        secret = Article.create!(published: false, secret: true)
+        Article.create!(published: true, secret: true, priority: 1)
+        Article.create!(published: false, secret: false)
+        expect(Article.accessible_by(@ability)).to contain_exactly(published, secret)
+      end
+
+      it 'merges a scope with a join with conditions on an association' do
+        @ability.can :read, Article, Article.joins(:category).where(categories: { visible: true })
+        @ability.can :read, Article, project: { name: 'cancancan' }
+        visible = Category.create!(visible: true)
+        hidden = Category.create!(visible: false)
+        project = Project.create!(name: 'cancancan')
+        in_visible_category = Article.create!(category: visible)
+        in_project = Article.create!(category: hidden, project: project)
+        without_category = Article.create!(project: project)
+        Article.create!(category: hidden)
+        expect(Article.accessible_by(@ability)).to contain_exactly(in_visible_category, in_project, without_category)
+      end
+
+      it 'does not duplicate the records matched several times by the join of a scope' do
+        @ability.can :read, Article, Article.joins(:comments).where(comments: { spam: false })
+        @ability.can :read, Article, project: { name: 'cancancan' }
+        commented = Article.create!(project: Project.create!(name: 'cancancan'))
+        2.times { commented.comments.create!(spam: false) }
+        Article.create!.comments.create!(spam: true)
+        expect(Article.accessible_by(@ability).to_a).to eq([commented])
+      end
+
+      it 'merges a scope with a join without conditions' do
+        @ability.can :read, Article, published: true
+        @ability.can :read, Article, Article.joins(:comments)
+        published = Article.create!(published: true)
+        commented = Article.create!(published: false)
+        2.times { commented.comments.create! }
+        Article.create!(published: false)
+        expect(Article.accessible_by(@ability).to_a).to contain_exactly(published, commented)
+      end
+
+      it 'ignores the select and the order of a scope' do
+        @ability.can :read, Article, Article.where(published: true).order(:priority).select(:id)
+        @ability.can :read, Article, secret: true
+        published = Article.create!(published: true, priority: 2)
+        secret = Article.create!(secret: true, priority: 1)
+        expect(Article.accessible_by(@ability).order(:priority).map(&:priority)).to eq([1, 2])
+        expect(Article.accessible_by(@ability)).to contain_exactly(published, secret)
+      end
+
+      # MySQL does not support a LIMIT in an IN subquery, so a scope with a limit cannot be used as a rule there.
+      it 'applies the limit of a scope in a subquery, without applying it to the other rules' do
+        @ability.can :read, Article, Article.where(published: true).order(:priority).limit(1)
+        @ability.can :read, Article, secret: true
+        first = Article.create!(published: true, priority: 1)
+        Article.create!(published: true, priority: 2)
+        secret = Article.create!(secret: true, priority: 3)
+        expect(Article.accessible_by(@ability).to_sql).to include('"articles"."id" IN (SELECT "articles"."id"')
+        expect(Article.accessible_by(@ability).to_sql).to include('LIMIT 1)')
+        expect(Article.accessible_by(@ability)).to contain_exactly(first, secret)
+      end
+
+      it 'does not fetch any records for an empty scope' do
+        @ability.can :read, Article, published: true
+        @ability.can :read, Article, Article.none
+        @ability.cannot :read, Article, Article.none
+        published = Article.create!(published: true)
+        Article.create!(published: false)
+        expect(Article.accessible_by(@ability)).to contain_exactly(published)
+      end
+
+      it 'negates the scope of a cannot rule' do
+        @ability.can :read, Article
+        @ability.cannot :read, Article, Article.where(secret: true)
+        public = Article.create!(secret: false)
+        unknown = Article.create!(secret: nil)
+        Article.create!(secret: true)
+        expect(Article.accessible_by(@ability)).to contain_exactly(public, unknown)
+      end
+
+      it 'does not load the records of a scope to build the query' do
+        @ability.can :read, Article, Article.joins(:category).where(categories: { visible: true })
+        @ability.can :read, Article, project: { name: 'cancancan' }
+        Article.create!(category: Category.create!(visible: true))
+        expect(count_queries { Article.accessible_by(@ability).to_sql }).to eq(0)
+      end
+
+      it 'negates a scope with a join of a cannot rule without excluding the records without the association' do
+        @ability.can :read, Article
+        @ability.cannot :read, Article, Article.joins(:category).where(categories: { visible: false })
+        visible = Article.create!(category: Category.create!(visible: true))
+        Article.create!(category: Category.create!(visible: false))
+        without_category = Article.create!
+        expect(Article.accessible_by(@ability)).to contain_exactly(visible, without_category)
+      end
+
+      it 'merges a scope with eager loading with conditions on an association' do
+        scope = Article.includes(:category).references(:categories).where(categories: { visible: true })
+        @ability.can :read, Article, scope
+        @ability.can :read, Article, project: { name: 'cancancan' }
+        in_visible_category = Article.create!(category: Category.create!(visible: true))
+        in_project = Article.create!(project: Project.create!(name: 'cancancan'))
+        Article.create!(category: Category.create!(visible: false))
+        expect(Article.accessible_by(@ability)).to contain_exactly(in_visible_category, in_project)
+      end
+
+      it 'keeps the conditions of the association when a scope has a join' do
+        @ability.can :read, Article, Article.joins(:category).where(categories: { visible: true })
+        category = Category.create!(visible: true)
+        article = Article.create!(category: category)
+        Article.create!(category: Category.create!(visible: true))
+        expect(category.articles.accessible_by(@ability)).to contain_exactly(article)
+      end
+
+      it 'merges SQL conditions, a scope and a cannot rule' do
+        @ability.can :read, Article, ['published = ?', true]
+        @ability.can :read, Article, Article.where(secret: true)
+        @ability.cannot :read, Article, priority: 1
+        published = Article.create!(published: true)
+        secret = Article.create!(secret: true)
+        Article.create!(published: true, priority: 1)
+        Article.create!(secret: true, priority: 1)
+        Article.create!
+        expect(Article.accessible_by(@ability)).to contain_exactly(published, secret)
+      end
+
+      it 'merges a scope built with or' do
+        @ability.can :read, Article, Article.where(published: true).or(Article.where(secret: true))
+        @ability.cannot :read, Article, priority: 1
+        published = Article.create!(published: true)
+        secret = Article.create!(secret: true)
+        Article.create!(published: true, priority: 1)
+        Article.create!
+        expect(Article.accessible_by(@ability)).to contain_exactly(published, secret)
+      end
+
+      it 'does not fetch any records when the rule with scope is suppressed' do
         @ability.can :read, Article, published: true
         @ability.can :read, Article, Article.where(secret: true)
         @ability.cannot :read, Article
-        expect { Article.accessible_by(@ability) }.not_to raise_error
+        Article.create!(published: true, secret: true)
+        expect(Article.accessible_by(@ability)).to be_empty
       end
 
       it 'recognises empty scopes and compresses them' do
@@ -1615,6 +1741,26 @@ RSpec.describe CanCan::ModelAdapters::ActiveRecordAdapter do
       expect(Article.accessible_by(ability)).to eq([article])
     end
 
+    it 'passes the conditions of the rules to a custom strategy as an Arel node' do
+      u = User.create!(name: 'pippo')
+      mentioned = Article.create!(mentioned_users: [u])
+      published = Article.create!(published: true)
+      Article.create!(mentioned_users: [User.create!(name: 'pluto')])
+
+      ability = Ability.new(u)
+      ability.can :read, Article, mentions: { user: { name: u.name } }
+      ability.can :read, Article, Article.where(published: true)
+      ability.cannot :read, Article, secret: true
+
+      strategy = Class.new(CanCan::ModelAdapters::Strategies::Base) do
+        def execute!
+          model_class.where(where_conditions).left_joins(joins).distinct
+        end
+      end
+
+      expect(Article.accessible_by(ability, strategy: strategy)).to contain_exactly(mentioned, published)
+    end
+
     it 'allows you to switch strategies with a block, and to_sql called outside the block' do
       u = User.create!(name: 'pippo')
       Article.create!(mentioned_users: [u])
@@ -1878,6 +2024,21 @@ RSpec.describe CanCan::ModelAdapters::ActiveRecordAdapter do
       expect(Motorbike.accessible_by(ability)).to eq([])
     end
 
+    it 'merges a scope of a subclass with the conditions of another subclass' do
+      u1 = User.create!(name: 'pippo')
+      car = Car.create!(capacity: 2)
+      Car.create!(capacity: 4)
+      motorbike = Motorbike.create!(capacity: 4)
+      Motorbike.create!(capacity: 2)
+
+      ability = Ability.new(u1)
+      ability.can :read, Car, Car.where(capacity: 2)
+      ability.can :read, Motorbike, capacity: 4
+      expect(Vehicle.accessible_by(ability)).to contain_exactly(car, motorbike)
+      expect(Car.accessible_by(ability)).to contain_exactly(car)
+      expect(Motorbike.accessible_by(ability)).to contain_exactly(motorbike)
+    end
+
     it 'allows a selectable scope when permit by two subclasses' do
       u1 = User.create!(name: 'pippo')
       Airplane.create!(capacity: 1)
@@ -1950,6 +2111,19 @@ RSpec.describe CanCan::ModelAdapters::ActiveRecordAdapter do
       expect(Vehicle.accessible_by(ability)).to contain_exactly(vehicle, small_car)
       expect(ability.can?(:read, big_car)).to be(false)
       expect(ability.can?(:read, small_car)).to be(true)
+    end
+
+    it 'negates the scope of a cannot rule defined on a subclass' do
+      u1 = User.create!(name: 'pippo')
+      vehicle = Vehicle.create!
+      small_car = Car.create!(capacity: 2)
+      Car.create!(capacity: 4)
+
+      ability = Ability.new(u1)
+      ability.can :read, Vehicle
+      ability.cannot :read, Car, Car.where(capacity: 4)
+      expect(Vehicle.accessible_by(ability)).to contain_exactly(vehicle, small_car)
+      expect(Car.accessible_by(ability)).to contain_exactly(small_car)
     end
 
     it 'applies a rule defined on a subclass of a subclass to the base class' do

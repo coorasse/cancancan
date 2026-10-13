@@ -57,10 +57,14 @@ module CanCan
       !can_rule? && catch_all?
     end
 
+    # The clauses of a scope that select its records, besides its conditions.
+    SELECTING_SCOPE_VALUES = %i[joins limit offset group having from].freeze
+
     def catch_all?
-      (with_scope? && @conditions.where_values_hash.empty?) ||
-        (@subjects.none? { |subject| StiDetector.sti_class?(subject) } &&
-          !with_scope? && [nil, false, [], {}, '', ' '].include?(@conditions))
+      return !@conditions.values.keys.intersect?([:where, *SELECTING_SCOPE_VALUES]) if with_scope?
+
+      @subjects.none? { |subject| StiDetector.sti_class?(subject) } &&
+        [nil, false, [], {}, '', ' '].include?(@conditions)
     end
 
     def only_block?
