@@ -293,9 +293,16 @@ module CanCan
     end
 
     def initial_attributes
+      scoped_attributes = attributes_from_parent_scope
       current_ability.attributes_for(@params[:action].to_sym, resource_class).delete_if do |key, _value|
-        resource_params&.include?(key)
+        scoped_attributes.include?(key.to_s) || resource_params&.include?(key)
       end
+    end
+
+    def attributes_from_parent_scope
+      return [] unless @options[:through] && resource_base.respond_to?(:scope_for_create)
+
+      resource_base.scope_for_create.keys.map(&:to_s)
     end
 
     # The params method of the controller can have side effects, so it is called at most once per request.

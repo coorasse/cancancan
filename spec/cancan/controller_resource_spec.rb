@@ -71,6 +71,59 @@ describe CanCan::ControllerResource do
     end
   end
 
+  context 'on create actions through a parent' do
+    before :each do
+      connect_db
+      ActiveRecord::Migration.verbose = false
+      ActiveRecord::Schema.define do
+        create_table(:authors)
+        create_table(:books) do |t|
+          t.integer :author_id
+          t.string :title
+        end
+      end
+
+      stub_const('Author', Class.new(ActiveRecord::Base) { has_many :books })
+      stub_const('Book', Class.new(ActiveRecord::Base) { belongs_to :author })
+
+      allow(controller).to receive(:authorize!) { |*args| ability.authorize!(*args) }
+      params.merge!(controller: 'books', action: 'create', author_id: requested_author.id.to_s,
+                    book: { title: 'Dune' })
+    end
+
+    let(:current_author) { Author.create! }
+    let(:requested_author) { Author.create! }
+
+    def load_book
+      CanCan::ControllerResource.new(controller, :author).load_resource
+      CanCan::ControllerResource.new(controller, :book, through: :author).load_and_authorize_resource
+      controller.instance_variable_get(:@book)
+    end
+
+    it 'keeps the parent from the URL when a rule without conditions also matches' do
+      ability.can :read, Author
+      ability.can :create, Book, author_id: current_author.id
+      ability.can :manage, :all
+
+      expect(load_book.author_id).to eq(requested_author.id)
+    end
+
+    it 'denies access instead of building the resource for the parent in the conditions' do
+      ability.can :read, Author
+      ability.can :create, Book, author_id: current_author.id
+
+      expect { load_book }.to raise_error(CanCan::AccessDenied)
+    end
+
+    it 'still assigns the other attributes from the conditions' do
+      ability.can :read, Author
+      ability.can :create, Book, author_id: requested_author.id, title: 'From conditions'
+      params.delete(:book)
+
+      expect(load_book).to have_attributes(author_id: requested_author.id, title: 'From conditions')
+    end
+  end
+
   context 'on create actions' do
     before :each do
       params.merge!(action: 'create')
