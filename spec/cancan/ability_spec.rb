@@ -382,6 +382,14 @@ describe CanCan::Ability do
     expect(@ability.can?(:read, 4..40)).to be(false)
   end
 
+  it 'allows an array of ranges and values in conditions hash' do
+    @ability.can :read, Range, begin: [1..3, 10..20, 7]
+    expect(@ability.can?(:read, 2..10)).to be(true)
+    expect(@ability.can?(:read, 15..30)).to be(true)
+    expect(@ability.can?(:read, 7..8)).to be(true)
+    expect(@ability.can?(:read, 5..6)).to be(false)
+  end
+
   it 'allows a range of time in conditions hash' do
     @ability.can :read, Range, begin: 1.day.from_now..3.days.from_now
     expect(@ability.can?(:read, 1.day.from_now..10.days.from_now)).to be(true)

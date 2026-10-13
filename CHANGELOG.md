@@ -89,6 +89,18 @@
   skip_authorize_resource except: :show
   ```
 
+#### `can?` matches the ranges in an array of values
+
+* [#924](https://github.com/CanCanCommunity/cancancan/pull/924): `can?` matches a value against the ranges in an array of values, as `accessible_by` already did. The ranges were compared with `==` and never matched, so `can?` denied records that `accessible_by` returned. When the attribute is itself a range, it now matches a range of the array that covers it. ([@coorasse][])
+
+  ```ruby
+  can :read, Product, stock: [1.., nil]
+
+  # 3.x: false, although Product.accessible_by(ability) returns the product
+  # 4.0: true
+  can? :read, Product.new(stock: 5)
+  ```
+
 ### Other changes
 
 * [#808](https://github.com/CanCanCommunity/cancancan/pull/808): Add `:if` and `:unless` options to `skip_load_resource`, `skip_authorize_resource` and `skip_load_and_authorize_resource`, as `check_authorization` already supports. ([@ammarghaus][])

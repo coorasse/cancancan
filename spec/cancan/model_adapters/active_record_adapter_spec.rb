@@ -1421,6 +1421,18 @@ RSpec.describe CanCan::ModelAdapters::ActiveRecordAdapter do
     end
   end
 
+  context 'when conditions are an array of ranges and nil' do
+    it 'matches the same records with can? and accessible_by' do
+      @ability.can :read, Article, priority: [1..2, 10.., nil]
+      matching = [Article.create!(priority: 2), Article.create!(priority: 15), Article.create!(priority: nil)]
+      not_matching = [Article.create!(priority: 0), Article.create!(priority: 5)]
+
+      expect(Article.accessible_by(@ability)).to match_array(matching)
+      matching.each { |article| expect(@ability).to be_able_to(:read, article) }
+      not_matching.each { |article| expect(@ability).not_to be_able_to(:read, article) }
+    end
+  end
+
   context 'when an association is used to create a rule' do
     before do
       ActiveRecord::Schema.define do
