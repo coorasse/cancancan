@@ -75,7 +75,7 @@ module CanCan
     def can?(action, subject, attribute = nil, *extra_args)
       action = action.to_sym if action.is_a?(String)
       results = extract_subjects(subject).lazy.map do |a_subject|
-        subject_can?(action, a_subject, attribute, *extra_args)
+        subject_permission(action, a_subject, attribute, *extra_args)
       end
       results.reject(&:nil?).first || false
     end

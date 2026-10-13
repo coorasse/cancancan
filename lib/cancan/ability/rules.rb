@@ -62,7 +62,7 @@ module CanCan
       # Returns nil when no rule matches. A class that uses single table inheritance is checked together with
       # its subclasses, each one with the rules of its own ancestors: the check passes when any of them passes,
       # which is also when `accessible_by` can return records.
-      def subject_can?(action, subject, attribute, *extra_args)
+      def subject_permission(action, subject, attribute, *extra_args)
         results = sti_classes(subject).map do |klass|
           matching_rule(action, klass, attribute, *extra_args)&.base_behavior
         end

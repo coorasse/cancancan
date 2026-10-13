@@ -106,7 +106,7 @@ module CanCan
 
     # Like Active Record with a relation as condition value: the selected column, or the primary key, is matched.
     def relation_match?(attribute, relation)
-      relation.where((relation.select_values.first || relation.primary_key) => attribute).exists?
+      relation.where(relation.select_values.first || relation.primary_key => attribute).exists?
     end
 
     def hash_condition_match?(attribute, value)

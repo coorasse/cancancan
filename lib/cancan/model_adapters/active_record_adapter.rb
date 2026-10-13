@@ -62,6 +62,7 @@ module CanCan
           foreign_key.nil? ? nil : all_conditions[foreign_key]
         end
 
+        # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
         def parent_child_foreign_key(parent, child)
           child_class = child.is_a?(Class) ? child : child.class
           parent_class = parent.is_a?(Class) ? parent : parent.class
@@ -106,6 +107,7 @@ module CanCan
           association
         end
 
+        # rubocop:enable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
         def parent_condition_name(parent, child)
           child_association_to_parent(parent, child)&.name || parent.class.name.downcase.to_sym
         end

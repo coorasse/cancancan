@@ -22,11 +22,11 @@ module CanCan
       # rules will come before 'can' rules. However, you can't remove attributes before
       # they are added. The 'reverse' is so that attributes will be added before the
       # 'cannot' rules remove them.
-      def fold_attributes(action, subject, &block)
+      def fold_attributes(action, subject, &)
         relevant_rules(action, subject)
           .reverse
           .select { |rule| rule.matches_conditions? action, subject }
-          .each_with_object(Set.new, &block)
+          .each_with_object(Set.new, &)
           .to_a
       end
 
