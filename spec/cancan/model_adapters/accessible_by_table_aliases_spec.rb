@@ -68,7 +68,7 @@ RSpec.describe CanCan::ModelAdapters::ActiveRecordAdapter do
           AliasTeamAccess.create!(privileged_team: @team1, accessible_team: @team2)
           @own = appreciation(receiver_team: @team1)
           @privileged = appreciation(receiver_team: @team2)
-          appreciation
+          @other = appreciation
         end
 
         it 'uses the alias of the joined table' do
@@ -89,6 +89,15 @@ RSpec.describe CanCan::ModelAdapters::ActiveRecordAdapter do
           ability.can :read, AliasAppreciation, shallow
 
           expect(AliasAppreciation.accessible_by(ability)).to contain_exactly(@own, @privileged)
+        end
+
+        it 'uses the aliases of the joins of a cannot rule checked in a subquery' do
+          ability.can :read, AliasAppreciation, team: { company_id: nil }
+          ability.cannot :read, AliasAppreciation,
+                         receiver: { team: { id: @team2.id, privileged_teams: { id: @team1.id } } }
+          ability.can :read, AliasAppreciation, team: { id: nil }
+
+          expect(AliasAppreciation.accessible_by(ability)).to contain_exactly(@own, @other)
         end
       end
 

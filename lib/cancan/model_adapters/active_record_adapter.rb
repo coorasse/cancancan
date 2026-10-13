@@ -14,7 +14,7 @@ module CanCan
                             end
         # The normalizers change the rules. Work on copies, so the rules of the ability stay the same.
         @compressed_rules = @compressed_rules.map(&:dup)
-        StiNormalizer.normalize(@compressed_rules)
+        StiNormalizer.normalize(model_class, @compressed_rules)
         ConditionsNormalizer.normalize(model_class, @compressed_rules)
       end
 
@@ -150,10 +150,11 @@ module CanCan
       end
 
       # Returns the associations used in conditions for the :joins option of a search.
+      # The cannot rules on a has_many association are checked in subqueries with their own joins.
       # See ModelAdditions#accessible_by
       def joins
         joins_hash = {}
-        @compressed_rules.reverse_each do |rule|
+        @compressed_rules.reject { |rule| collection_cannot?(rule) }.reverse_each do |rule|
           deep_merge(joins_hash, rule.associations_hash)
         end
         deep_clean(joins_hash) unless joins_hash.empty?
@@ -179,6 +180,13 @@ module CanCan
       def primary_key_in(scope)
         columns = Array(@model_class.primary_key).map { |column| @model_class.arel_table[column] }
         Arel::Nodes::In.new(columns.one? ? columns.first : group(columns), subquery(scope, columns).ast)
+      end
+
+      # The conditions of the rules, given by the block as Arel nodes, folded in the order the rules were defined:
+      # a `can` rule adds its records to the ones of the previous rules, a `cannot` rule removes its records
+      # from them. Returns :all and :none when every record or no record is accessible.
+      def merge_rules
+        @compressed_rules.reverse.inject(:none) { |previous, rule| merge_rule(previous, rule, yield(rule)) }
       end
 
       private
@@ -212,16 +220,39 @@ module CanCan
         scope.reselect(*columns).arel
       end
 
-      # The conditions of all the rules as an Arel node, or :all and :none when every record or no record
-      # is accessible. The rules are folded in the order they were defined: a `can` rule adds its records
-      # to the ones of the previous rules, a `cannot` rule removes its records from them.
       def where_conditions
         @where_conditions ||= begin
           conditions_extractor = ConditionsExtractor.new(@model_class, joins)
-          @compressed_rules.reverse.inject(:none) do |previous, rule|
-            merge_rule(previous, rule, rule_conditions(rule, conditions_extractor))
+          merge_rules do |rule|
+            if collection_cannot?(rule)
+              matching_records_conditions(rule)
+            else
+              rule_conditions(rule, conditions_extractor)
+            end
           end
         end
+      end
+
+      def collection_cannot?(rule)
+        !rule.base_behavior && collection_association?(@model_class, rule.associations_hash)
+      end
+
+      def collection_association?(model_class, associations)
+        associations.any? do |name, nested|
+          reflection = model_class.reflect_on_association(name)
+          next false if reflection.nil? || reflection.polymorphic?
+
+          reflection.collection? || collection_association?(reflection.klass, nested)
+        end
+      end
+
+      # A cannot rule on a has_many association excludes a record when any of its associated records matches,
+      # so it is checked on the records of a subquery instead of on each joined row.
+      def matching_records_conditions(rule)
+        conditions = rule_conditions(rule, ConditionsExtractor.new(@model_class, rule.associations_hash))
+        return if conditions.nil?
+
+        primary_key_in(@model_class.unscoped { @model_class.left_joins(rule.associations_hash).where(conditions) })
       end
 
       # A chain of ORs is grouped, so that it keeps its precedence next to the other conditions of the query.

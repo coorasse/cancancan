@@ -7,18 +7,14 @@ module CanCan
         def execute!
           model_class
             .joins(aliased_table_join)
-            .where(double_exists_sql)
+            .where(Arel::Nodes::Grouping.new(double_exists_conditions))
         end
 
-        def double_exists_sql
-          double_exists_sql = ''
-
-          compressed_rules.select(&:base_behavior).each_with_index do |rule, index|
-            double_exists_sql << ' OR ' if index.positive?
-            double_exists_sql << "EXISTS (#{sub_query_for_rule(rule).to_sql})"
+        # Every rule is checked in its own EXISTS subquery, merged in the order the rules were defined.
+        def double_exists_conditions
+          merge_rules do |rule|
+            Arel::Nodes::Exists.new(sub_query_for_rule(rule).arel.ast) if rule_conditions(rule)
           end
-
-          double_exists_sql
         end
 
         def sub_query_for_rule(rule)

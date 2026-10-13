@@ -46,7 +46,11 @@
   Article.accessible_by(ability)
   ```
 
-  A scope with conditions on a joined table, or with a join or a limit, is no longer treated as a rule without conditions, which silently discarded the rules defined before it. `ActiveRecordAdapter#conditions`, which is not public API, returns the SQL of a single scope rule instead of the scope, and `'1=0'` instead of `'t'='f'` when no record is accessible. A custom strategy receives `where_conditions` as an Arel node, to pass to `where`, instead of an array of conditions.
+  Also:
+
+  - A scope with conditions on a joined table, or with a join or a limit, is no longer treated as a rule without conditions, which silently discarded the rules defined before it.
+  - `ActiveRecordAdapter#conditions`, which is not public API, returns the SQL of a single scope rule instead of the scope, and `'1=0'` instead of `'t'='f'` when no record is accessible.
+  - A custom strategy receives `where_conditions` as an Arel node, to pass to `where`, instead of an array of conditions.
 
 #### The RSpec matcher cannot be negated with several actions
 
@@ -139,11 +143,149 @@
 
 ### Other changes
 
-* [#808](https://github.com/CanCanCommunity/cancancan/pull/808): Add `:if` and `:unless` options to `skip_load_resource`, `skip_authorize_resource` and `skip_load_and_authorize_resource`, as `check_authorization` already supports. ([@ammarghaus][])
-* [#921](https://github.com/CanCanCommunity/cancancan/pull/921): Keep the parent of a nested resource built on `new` and `create`: the conditions of the ability no longer overwrite the foreign key set by the `through` association, so a request to `/authors/2/books` with `can :create, Book, author_id: user.id` builds the book for author 2 and is denied, instead of building it for the current user and passing authorization. ([@coorasse][])
-* [#915](https://github.com/CanCanCommunity/cancancan/pull/915): Check the conditions on an association that is not loaded with one query in `can?`, instead of loading all of its records: `can :read, Author, books: { user: user }` no longer loads every book of the author. An association that is already loaded is still checked in memory without queries. **WARNING**: the keys below such an association must be columns or associations, as `accessible_by` requires, and NULL columns of the records below it are matched as in `accessible_by`. ([@oboxodo][], [@coorasse][])
-* [#918](https://github.com/CanCanCommunity/cancancan/pull/918): Support models with a composite primary key in `accessible_by`: the subqueries of the `:subquery`, `:joined_alias_exists_subquery` and `:joined_alias_each_rule_as_exists_subquery` strategies and of the rules with a scope compare every column of the primary key. ([@coorasse][])
-* [#887](https://github.com/CanCanCommunity/cancancan/pull/887): Speed up `can?` by 20% to 100% on CRuby, depending on the check: the subjects are checked with a loop instead of a lazy enumerator, the expanded actions of a rule are memoized, the possibly relevant rules are fetched with `values_at` and class names are compared with `Module#name` instead of `to_s`. The memoized actions are forgotten when `alias_action`, `clear_aliased_actions` or `merge` change the aliases, so an alias defined after a `can?` call is now applied: it was ignored before. ([@tr4b4nt][], [@coorasse][])
+#### `accessible_by` returns only the records that `can?` allows
+
+* [#932](https://github.com/CanCanCommunity/cancancan/pull/932): Keep the conditions of every `has_many :through` association that goes through the same table. ([@coorasse][])
+
+  ```ruby
+  class Post < ApplicationRecord
+    has_many :taggings
+    has_many :tags, through: :taggings
+    has_many :topics, through: :taggings
+  end
+
+  can :read, Post, tags: { name: 'ruby' }, topics: { name: 'rails' }
+
+  # 3.x: ignores the condition on the tags, so it returns posts with any tag
+  # 4.0: returns only the posts tagged 'ruby' with the topic 'rails'
+  Post.accessible_by(ability)
+  ```
+
+* [#932](https://github.com/CanCanCommunity/cancancan/pull/932): Exclude the subclasses of a class denied by a `cannot` rule, with single table inheritance. ([@coorasse][])
+
+  ```ruby
+  class Animal < ApplicationRecord; end
+  class Dog < Animal; end
+  class Puppy < Dog; end
+
+  can :read, Animal
+  cannot :read, Dog
+
+  # 3.x: returns the puppies, although can?(:read, puppy) is false
+  # 4.0: returns neither the dogs nor the puppies
+  Animal.accessible_by(ability)
+  ```
+
+* [#932](https://github.com/CanCanCommunity/cancancan/pull/932): Filter by type a rule on a single table inheritance subclass and on another class. ([@coorasse][])
+
+  ```ruby
+  class Car < Vehicle; end
+  class Airplane < Vehicle; end
+
+  can :read, [Car, Brand]
+
+  # 3.x: returns every vehicle, airplanes included
+  # 4.0: returns only the cars
+  Vehicle.accessible_by(ability)
+  ```
+
+* [#932](https://github.com/CanCanCommunity/cancancan/pull/932): Apply the `cannot` rules and the order of the rules with the `:joined_alias_each_rule_as_exists_subquery` strategy, as the other strategies do. ([@coorasse][])
+
+  ```ruby
+  CanCan.accessible_by_strategy = :joined_alias_each_rule_as_exists_subquery
+
+  can :read, Post, comments: { spam: false }
+  cannot :read, Post, secret: true
+
+  # 3.x: returns the secret posts too
+  # 4.0: excludes the secret posts
+  Post.accessible_by(ability)
+  ```
+
+* [#932](https://github.com/CanCanCommunity/cancancan/pull/932): Exclude a record when any of its `has_many` records matches a `cannot` rule, as `can?` does. Such a rule is now checked in a subquery on the primary key, `NOT (posts.id IN (SELECT ...))`. The SQL of the other `cannot` rules does not change. ([@coorasse][])
+
+  ```ruby
+  can :read, Post
+  cannot :read, Post, comments: { spam: true }
+
+  # A post with one spam comment and one other comment
+  # 3.x: returned, because the other comment does not match the cannot rule
+  # 4.0: excluded
+  Post.accessible_by(ability)
+  ```
+
+* [#918](https://github.com/CanCanCommunity/cancancan/pull/918): Support models with a composite primary key. The subqueries of the `:subquery`, `:joined_alias_exists_subquery` and `:joined_alias_each_rule_as_exists_subquery` strategies, and of the rules with a scope, compare every column of the primary key. ([@coorasse][])
+
+  ```ruby
+  class Membership < ApplicationRecord
+    self.primary_key = %i[team_id user_id]
+  end
+
+  # 4.0: the subqueries compare both team_id and user_id
+  Membership.accessible_by(ability)
+  ```
+
+#### `can?` and action aliases
+
+* [#932](https://github.com/CanCanCommunity/cancancan/pull/932): Raise an error when an action is aliased to `:manage` or to itself. ([@coorasse][])
+
+  ```ruby
+  # 3.x: grants every action
+  # 4.0: raises CanCan::Error
+  alias_action :edit, to: :manage
+
+  # 3.x: loops forever
+  # 4.0: raises CanCan::Error
+  alias_action :read, to: :read
+  ```
+
+* [#915](https://github.com/CanCanCommunity/cancancan/pull/915): Check the conditions on an association that is not loaded with one query, instead of loading all of its records. An association that is already loaded is still checked in memory, without queries. ([@oboxodo][], [@coorasse][])
+
+  ```ruby
+  can :read, Author, books: { user: user }
+
+  # 3.x: loads every book of the author
+  # 4.0: checks the books with one query
+  can? :read, author
+  ```
+
+  **WARNING**: the keys below such an association must be columns or associations, as `accessible_by` requires, and NULL columns of the records below it are matched as in `accessible_by`.
+
+* [#887](https://github.com/CanCanCommunity/cancancan/pull/887): Speed up `can?` by 20% to 100% on CRuby, depending on the check. The subjects are checked with a loop instead of a lazy enumerator, the expanded actions of a rule are memoized, the possibly relevant rules are fetched with `values_at`, and class names are compared with `Module#name` instead of `to_s`. The memoized actions are forgotten when `alias_action`, `clear_aliased_actions` or `merge` change the aliases, so an alias defined after a `can?` call is now applied. ([@tr4b4nt][], [@coorasse][])
+
+  ```ruby
+  can :read, Article
+  can? :read, article
+
+  alias_action :preview, to: :read
+
+  # 4.0: true, the alias is applied although it was defined after the first check
+  can? :preview, article
+  ```
+
+#### Controllers
+
+* [#808](https://github.com/CanCanCommunity/cancancan/pull/808): Add the `:if` and `:unless` options to `skip_load_resource`, `skip_authorize_resource` and `skip_load_and_authorize_resource`, as `check_authorization` already supports. ([@ammarghaus][])
+
+  ```ruby
+  skip_authorize_resource if: :public_page?
+  skip_load_resource unless: -> { params[:id].present? }
+  ```
+
+* [#921](https://github.com/CanCanCommunity/cancancan/pull/921): Keep the parent of a nested resource built on `new` and `create`. The conditions of the ability no longer overwrite the foreign key set by the `through` association. ([@coorasse][])
+
+  ```ruby
+  class BooksController < ApplicationController
+    load_and_authorize_resource :author
+    load_and_authorize_resource :book, through: :author
+  end
+
+  can :create, Book, author_id: user.id
+
+  # POST /authors/2/books by the user 1
+  # 3.x: builds the book for the author 1, so authorization passes
+  # 4.0: builds the book for the author 2, so authorization is denied
+  ```
 
 ## 3.7.0
 

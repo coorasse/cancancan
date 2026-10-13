@@ -7,6 +7,7 @@ module CanCan
         delegate(
           :compressed_rules,
           :joins,
+          :merge_rules,
           :model_class,
           :primary_key_in,
           :rule_conditions,

@@ -15,7 +15,7 @@ module CanCan
 
           conditions.each_with_object({}) do |(key, value), result_hash|
             if value.is_a? Hash
-              result_hash.merge!(calculate_result_hash(model_class, key, value))
+              result_hash.deep_merge!(calculate_result_hash(model_class, key, value))
             else
               result_hash[key] = value
             end
