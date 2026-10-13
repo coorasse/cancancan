@@ -11,6 +11,13 @@ module CanCan
       true
     end
 
+    def conditions_empty?
+      # @conditions might be an ActiveRecord::Associations::CollectionProxy
+      # which it's `==` implementation will fetch all records for comparison
+
+      (@conditions.is_a?(Hash) && @conditions == {}) || @conditions.nil?
+    end
+
     private
 
     def subject_class?(subject)
@@ -169,13 +176,6 @@ module CanCan
 
     def model_adapter(subject)
       CanCan::ModelAdapters::AbstractAdapter.adapter_class(subject_class?(subject) ? subject : subject.class)
-    end
-
-    def conditions_empty?
-      # @conditions might be an ActiveRecord::Associations::CollectionProxy
-      # which it's `==` implementation will fetch all records for comparison
-
-      (@conditions.is_a?(Hash) && @conditions == {}) || @conditions.nil?
     end
   end
 end

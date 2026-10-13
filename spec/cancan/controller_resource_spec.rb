@@ -45,6 +45,14 @@ describe CanCan::ControllerResource do
       expect(controller.instance_variable_get(:@model).name).to eq('from params')
     end
 
+    it 'does not assign attributes from conditions when a rule without conditions allows the action' do
+      ability.can(:create, Model)
+      ability.can(:create, Model, name: 'from conditions')
+      resource = CanCan::ControllerResource.new(controller)
+      resource.load_resource
+      expect(controller.instance_variable_get(:@model).name).to be_nil
+    end
+
     it 'builds a resource when on custom new action even when params[:id] exists' do
       params.merge!(action: 'build', id: '123')
       allow(Model).to receive(:new) { :some_model }

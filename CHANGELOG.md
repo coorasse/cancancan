@@ -117,6 +117,26 @@
 
   A parent resource that is not loaded `through` by another resource and is not in the parameters, such as one found with `id_param`, needs `parent: true`.
 
+#### The conditions of the ability pre-fill a new resource only when they restrict it
+
+* [#926](https://github.com/CanCanCommunity/cancancan/pull/926): `load_resource` builds a new resource on `new` and `create` with the values of the hash conditions of the `can` rules, through `attributes_for`. These values are no longer assigned when a `can` rule without conditions allows the action, since any value is allowed. When several rules set the same attribute, the most recent rule wins instead of the oldest, and the rules defined before a `cannot` rule without conditions are ignored. ([@coorasse][])
+
+  ```ruby
+  can :create, Boat if user.admin?
+  can :create, Boat, slow: true
+
+  # 3.x: { slow: true }, so the boats built for an admin are slow
+  # 4.0: {}
+  attributes_for(:create, Boat)
+
+  can :new, Foo, bar: 22
+  can :new, Foo, bar: 33
+
+  # 3.x: { bar: 22 }
+  # 4.0: { bar: 33 }
+  attributes_for(:new, Foo)
+  ```
+
 ### Other changes
 
 * [#808](https://github.com/CanCanCommunity/cancancan/pull/808): Add `:if` and `:unless` options to `skip_load_resource`, `skip_authorize_resource` and `skip_load_and_authorize_resource`, as `check_authorization` already supports. ([@ammarghaus][])

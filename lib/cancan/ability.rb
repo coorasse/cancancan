@@ -190,11 +190,7 @@ module CanCan
     end
 
     def attributes_for(action, subject)
-      attributes = {}
-      relevant_rules(action, subject).map do |rule|
-        attributes.merge!(rule.attributes_from_conditions) if rule.base_behavior
-      end
-      attributes
+      relevant_rules_for_attributes(action, subject).reverse.map(&:attributes_from_conditions).reduce({}, :merge)
     end
 
     def has_block?(action, subject)

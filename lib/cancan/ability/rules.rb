@@ -105,6 +105,20 @@ module CanCan
         rules
       end
 
+      # The can rules that give the initial attributes of a new resource, newest first. A can rule without
+      # conditions allows any value, so no rule is needed, and a cannot rule without conditions hides the older rules.
+      def relevant_rules_for_attributes(action, subject)
+        rules = []
+        relevant_rules(action, subject).each do |rule|
+          if rule.conditions_empty? && rule.block.nil?
+            return [] if rule.base_behavior
+            break if rule.attributes.empty?
+          end
+          rules << rule if rule.base_behavior
+        end
+        rules
+      end
+
       # Optimizes the order of the rules, so that rules with the :all subject are evaluated first.
       def optimize_order!(rules)
         first_can_in_group = -1

@@ -196,6 +196,16 @@ end
 
 > If you specify a `create_params` or `update_params` method, CanCan will run that method depending on the action you are performing.
 
+On `new` and `create`, the attributes that are not in the params are set from the hash conditions of your `can` rules, so that the new instance passes them:
+
+```ruby
+can :create, Article, published: false
+
+# @article = Article.new(article_params) with published set to false
+```
+
+When several rules set the same attribute, the most recent rule wins. No attribute is set when a `can` rule without conditions allows the action, since any value is allowed then.
+
 In the chapter dedicated to [Customize controller helpers](./changing_defaults.md) we will see more details and customizations for controllers.
 
 There's a dedicated chapter to [Nested resources](./nested_resources.md).

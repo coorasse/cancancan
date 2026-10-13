@@ -513,6 +513,45 @@ describe CanCan::Ability do
     expect(@ability.attributes_for(:new, Range)).to eq(foo: 'foo', bar: 123, baz: 'baz')
   end
 
+  describe '#attributes_for' do
+    it 'has no initial values when a rule without conditions allows the action' do
+      @ability.can :create, Range
+      @ability.can :create, Range, slow: true
+      expect(@ability.attributes_for(:create, Range)).to eq({})
+    end
+
+    it 'has no initial values when a rule without conditions on :all allows the action' do
+      @ability.can :manage, :all
+      @ability.can :create, Range, slow: true
+      expect(@ability.attributes_for(:create, Range)).to eq({})
+    end
+
+    it 'takes the value of the most recent rule' do
+      @ability.can :new, Range, bar: 22
+      @ability.can :new, Range, bar: 33
+      expect(@ability.attributes_for(:new, Range)).to eq(bar: 33)
+    end
+
+    it 'ignores the rules defined before a cannot rule without conditions' do
+      @ability.can :new, Range, bar: 22, foo: 'foo'
+      @ability.cannot :new, Range
+      @ability.can :new, Range, bar: 33
+      expect(@ability.attributes_for(:new, Range)).to eq(bar: 33)
+    end
+
+    it 'keeps the rules defined before a cannot rule on attributes' do
+      @ability.can :new, Range, bar: 22
+      @ability.cannot :new, Range, :bar
+      expect(@ability.attributes_for(:new, Range)).to eq(bar: 22)
+    end
+
+    it 'keeps the values of the rules defined before a rule with a block' do
+      @ability.can :new, Range, bar: 22
+      @ability.can(:new, Range) { |range| range.first.positive? }
+      expect(@ability.attributes_for(:new, Range)).to eq(bar: 22)
+    end
+  end
+
   it 'allows to check ability even the object implements `#to_a`' do
     stub_const('X', Class.new do
       def self.to_a
