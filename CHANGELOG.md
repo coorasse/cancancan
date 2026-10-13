@@ -5,9 +5,11 @@
 * Drop support for Ruby < 3.2 and Rails < 8.0. The `ActiveRecord4Adapter` and `ActiveRecord5Adapter` classes are merged into `ActiveRecordAdapter`, and `:subquery` is always the default `accessible_by_strategy`. ([@coorasse][])
 * [#796](https://github.com/CanCanCommunity/cancancan/pull/796): The RSpec matcher raises `CanCan::ImplementationRemoved` when negated with several actions, as in `expect(ability).not_to be_able_to(%i[read update], article)`. It passed as soon as one action was forbidden, which was often misread as all actions being forbidden. Write one expectation per action instead. ([@coorasse][])
 * [#903](https://github.com/CanCanCommunity/cancancan/pull/903): `permitted_attributes` no longer includes the primary key when a rule has no attributes. It was documented to exclude it, but a bug kept `id` in the returned array. If your strong parameters rely on `permitted_attributes` to permit the primary key, add it explicitly, for example `params.require(:project).permit(:id, *current_ability.permitted_attributes(:update, @project))`. ([@coorasse][])
+* [#808](https://github.com/CanCanCommunity/cancancan/pull/808): `skip_load_resource`, `skip_authorize_resource` and `skip_load_and_authorize_resource` combine the `:only` and `:except` options with AND, like `before_action` does. They were combined with OR: `skip_authorize_resource only: :index, except: :show` skipped every action but `show`. If you passed both options and relied on that, pass only `:except` to keep the old behavior. ([@coorasse][])
 
 ### Other changes
 
+* [#808](https://github.com/CanCanCommunity/cancancan/pull/808): Add `:if` and `:unless` options to `skip_load_resource`, `skip_authorize_resource` and `skip_load_and_authorize_resource`, as `check_authorization` already supports. ([@ammarghaus][])
 * [#915](https://github.com/CanCanCommunity/cancancan/pull/915): Check the conditions on an association that is not loaded with one query in `can?`, instead of loading all of its records: `can :read, Author, books: { user: user }` no longer loads every book of the author. An association that is already loaded is still checked in memory without queries. **WARNING**: the keys below such an association must be columns or associations, as `accessible_by` requires, and NULL columns of the records below it are matched as in `accessible_by`. ([@oboxodo][], [@coorasse][])
 
 ## 3.7.0
@@ -777,6 +779,7 @@ Please read the [guide on migrating from CanCanCan 2.x to 3.0](https://github.co
 [@cgunther]: https://github.com/cgunther
 [@mswiszcz]: https://github.com/mswiszcz
 [@andrykonchin]: https://github.com/andrykonchin
+[@ammarghaus]: https://github.com/ammarghaus
 [@mark-young-atg]: https://github.com/mark-young-atg
 [@jaredbeck]: https://github.com/jaredbeck
 [@NikosVlagoidis]: https://github.com/NikosVlagoidis

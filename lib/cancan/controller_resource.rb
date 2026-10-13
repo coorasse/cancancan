@@ -51,12 +51,13 @@ module CanCan
       @options.key?(:parent) ? @options[:parent] : @name && @name != name_from_controller.to_sym
     end
 
+    # The options of skip_load_resource, skip_authorize_resource and skip_load_and_authorize_resource
+    # are combined like in a before_action: every given option must match.
     def skip?(behavior)
-      return false unless (options = @controller.class.cancan_skipper[behavior][@name])
+      options = @controller.class.cancan_skipper[behavior][@name]
+      return false unless options
 
-      options == {} ||
-        options[:except] && !action_exists_in?(options[:except]) ||
-        action_exists_in?(options[:only])
+      action_matches?(options) && conditions_met?(options)
     end
 
     protected
@@ -352,8 +353,27 @@ module CanCan
 
     private
 
-    def action_exists_in?(options)
-      Array(options).map(&:to_sym).include?(@params[:action].to_sym)
+    def action_matches?(options)
+      (options[:only].nil? || action_exists_in?(options[:only])) &&
+        (options[:except].nil? || !action_exists_in?(options[:except]))
+    end
+
+    def conditions_met?(options)
+      (options[:if].nil? || condition_met?(options[:if])) &&
+        (options[:unless].nil? || !condition_met?(options[:unless]))
+    end
+
+    def action_exists_in?(actions)
+      Array(actions).map(&:to_sym).include?(@params[:action].to_sym)
+    end
+
+    def condition_met?(condition)
+      result = condition.respond_to?(:call) ? call_condition(condition) : @controller.send(condition)
+      !!result
+    end
+
+    def call_condition(condition)
+      condition.arity.zero? ? @controller.instance_exec(&condition) : condition.call(@controller)
     end
 
     def extract_key(value)
