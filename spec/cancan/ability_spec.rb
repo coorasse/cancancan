@@ -330,6 +330,20 @@ describe CanCan::Ability do
     expect(@ability.can?(:update, Integer)).to be(true)
   end
 
+  it 'applies an alias defined after a check' do
+    @ability.can :modify, :all
+    expect(@ability.can?(:update, 123)).to be(false)
+    @ability.alias_action :update, to: :modify
+    expect(@ability.can?(:update, 123)).to be(true)
+  end
+
+  it 'forgets the default aliases cleared after a check' do
+    @ability.can :read, :all
+    expect(@ability.can?(:index, 123)).to be(true)
+    @ability.clear_aliased_actions
+    expect(@ability.can?(:index, 123)).to be(false)
+  end
+
   it 'passes additional arguments to block from can?' do
     @ability.can :read, Integer do |int, x|
       int > x
@@ -914,6 +928,26 @@ describe CanCan::Ability do
 
       @ability.merge(another_ability)
       expect(@ability.send(:rules).size).to eq(0)
+    end
+
+    it 'applies its own aliases to the rules of the given ability, even when they were already checked' do
+      @ability.alias_action :increment, to: :modify
+      (another_ability = double).extend(CanCan::Ability)
+      another_ability.can :modify, :all
+      expect(another_ability.can?(:increment, 123)).to be(false)
+
+      @ability.merge(another_ability)
+      expect(@ability.can?(:increment, 123)).to be(true)
+    end
+
+    it 'applies the aliases of the given ability to its own rules, even when they were already checked' do
+      @ability.can :modify, :all
+      expect(@ability.can?(:increment, 123)).to be(false)
+      (another_ability = double).extend(CanCan::Ability)
+      another_ability.alias_action :increment, to: :modify
+
+      @ability.merge(another_ability)
+      expect(@ability.can?(:increment, 123)).to be(true)
     end
   end
 

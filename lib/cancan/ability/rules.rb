@@ -39,7 +39,7 @@ module CanCan
         action = action.to_sym if action.is_a?(String)
 
         relevant = possible_relevant_rules(subject).select do |rule|
-          rule.expanded_actions = expand_actions(rule.actions)
+          rule.expanded_actions ||= expand_actions(rule.actions)
           rule.relevant? action, subject
         end
         relevant.reverse!.uniq!
@@ -55,7 +55,7 @@ module CanCan
           positions.compact!
           positions.flatten!
           positions.sort!
-          positions.map { |i| @rules[i] }
+          @rules.values_at(*positions)
         end
       end
 

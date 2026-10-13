@@ -38,7 +38,7 @@ module CanCan
         validate_target(target, actions)
         aliased_actions[target] ||= []
         aliased_actions[target] += actions
-        @expanded_actions = nil
+        forget_expanded_actions
       end
 
       # Returns a hash of aliased actions. The key is the target and the value is an array of actions aliasing the key.
@@ -49,7 +49,7 @@ module CanCan
       # Removes previously aliased actions including the defaults.
       def clear_aliased_actions
         @aliased_actions = {}
-        @expanded_actions = nil
+        forget_expanded_actions
       end
 
       private
@@ -74,6 +74,12 @@ module CanCan
 
       def expanded_actions
         @expanded_actions ||= {}
+      end
+
+      # The expanded actions depend on the aliases: they are computed again after the aliases change.
+      def forget_expanded_actions
+        @expanded_actions = nil
+        rules.each { |rule| rule.expanded_actions = nil }
       end
 
       # Accepts an array of actions and returns an array of actions which match.

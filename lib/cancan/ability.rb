@@ -74,10 +74,13 @@ module CanCan
     # Also see the RSpec Matchers to aid in testing.
     def can?(action, subject, attribute = nil, *extra_args)
       action = action.to_sym if action.is_a?(String)
-      results = extract_subjects(subject).lazy.map do |a_subject|
-        subject_permission(action, a_subject, attribute, *extra_args)
+      extract_subjects(subject).each do |a_subject|
+        permission = subject_permission(action, a_subject, attribute, *extra_args)
+        next if permission.nil?
+
+        return permission
       end
-      results.reject(&:nil?).first || false
+      false
     end
 
     # Convenience method which works the same as "can?" but returns the opposite value.
@@ -254,7 +257,7 @@ module CanCan
         add_rule(rule.dup)
       end
       @aliased_actions = aliased_actions.merge(ability.aliased_actions)
-      @expanded_actions = nil
+      forget_expanded_actions
       self
     end
 

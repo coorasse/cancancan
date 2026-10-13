@@ -94,6 +94,7 @@
 * [#808](https://github.com/CanCanCommunity/cancancan/pull/808): Add `:if` and `:unless` options to `skip_load_resource`, `skip_authorize_resource` and `skip_load_and_authorize_resource`, as `check_authorization` already supports. ([@ammarghaus][])
 * [#915](https://github.com/CanCanCommunity/cancancan/pull/915): Check the conditions on an association that is not loaded with one query in `can?`, instead of loading all of its records: `can :read, Author, books: { user: user }` no longer loads every book of the author. An association that is already loaded is still checked in memory without queries. **WARNING**: the keys below such an association must be columns or associations, as `accessible_by` requires, and NULL columns of the records below it are matched as in `accessible_by`. ([@oboxodo][], [@coorasse][])
 * [#918](https://github.com/CanCanCommunity/cancancan/pull/918): Support models with a composite primary key in `accessible_by`: the subqueries of the `:subquery`, `:joined_alias_exists_subquery` and `:joined_alias_each_rule_as_exists_subquery` strategies and of the rules with a scope compare every column of the primary key. ([@coorasse][])
+* [#887](https://github.com/CanCanCommunity/cancancan/pull/887): Speed up `can?` by 20% to 100% on CRuby, depending on the check: the subjects are checked with a loop instead of a lazy enumerator, the expanded actions of a rule are memoized, the possibly relevant rules are fetched with `values_at` and class names are compared with `Module#name` instead of `to_s`. The memoized actions are forgotten when `alias_action`, `clear_aliased_actions` or `merge` change the aliases, so an alias defined after a `can?` call is now applied: it was ignored before. ([@tr4b4nt][], [@coorasse][])
 
 ## 3.7.0
 
@@ -874,3 +875,4 @@ Please read the [guide on migrating from CanCanCan 2.x to 3.0](https://github.co
 [@kevinluo201]: https://github.com/kevinluo201
 [@jtagle2]: https://github.com/jtagle2
 [@mamhoff]: https://github.com/mamhoff
+[@tr4b4nt]: https://github.com/tr4b4nt

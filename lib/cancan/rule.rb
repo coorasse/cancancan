@@ -13,7 +13,7 @@ module CanCan
     include Relevant
     include ParameterValidators
 
-    attr_reader :base_behavior, :subjects, :actions, :conditions, :attributes, :block
+    attr_reader :base_behavior, :subjects, :actions, :conditions, :attributes, :block, :expanded_actions
     attr_writer :expanded_actions, :conditions
 
     # The first argument when initializing is the base_behavior which is a true/false
