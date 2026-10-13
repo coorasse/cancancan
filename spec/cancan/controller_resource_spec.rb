@@ -21,6 +21,7 @@ describe CanCan::ControllerResource do
 
     allow(controller).to receive(:params) { params }
     allow(controller).to receive(:current_ability) { ability }
+    allow(controller_class).to receive(:cancan_parent_names) { [] }
     allow(controller_class).to receive(:cancan_skipper) { { authorize: {}, load: {} } }
   end
 
@@ -715,9 +716,32 @@ describe CanCan::ControllerResource do
     end.to_not raise_error
   end
 
-  it "is a parent resource when name is provided which doesn't match controller" do
+  it "is a parent resource when name doesn't match controller and the request has its id param" do
+    params[:category_id] = '1'
     resource = CanCan::ControllerResource.new(controller, :category)
     expect(resource).to be_parent
+  end
+
+  it "is a parent resource when name doesn't match controller and another resource is loaded through it" do
+    allow(controller_class).to receive(:cancan_parent_names) { [:category] }
+    resource = CanCan::ControllerResource.new(controller, :category)
+    expect(resource).to be_parent
+  end
+
+  it "is not a parent resource when name doesn't match controller only" do
+    resource = CanCan::ControllerResource.new(controller, :category)
+    expect(resource).to_not be_parent
+  end
+
+  it "authorizes the controller action on a resource whose name doesn't match controller" do
+    model = Model.new
+    allow(Model).to receive(:find).with('123') { model }
+    params.merge!(controller: 'model_services', action: 'update', id: '123')
+    allow(controller).to receive(:authorize!).with(:update, model) { raise CanCan::AccessDenied }
+
+    resource = CanCan::ControllerResource.new(controller, :model)
+    expect { resource.load_and_authorize_resource }.to raise_error(CanCan::AccessDenied)
+    expect(controller.instance_variable_get(:@model)).to eq(model)
   end
 
   it 'does not be a parent resource when name is provided which matches controller' do

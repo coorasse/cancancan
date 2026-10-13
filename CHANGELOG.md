@@ -101,6 +101,22 @@
   can? :read, Product.new(stock: 5)
   ```
 
+#### A resource named differently than the controller is a parent only when it is nested
+
+* [#925](https://github.com/CanCanCommunity/cancancan/pull/925): A resource whose name does not match the controller is a parent resource only when another resource of the controller is loaded `through` it, or when the request has a parameter named after it, such as `book_id`. Every resource named differently than the controller was considered a parent, so it was loaded with `params[:book_id]` and authorized with `:show` instead of the action of the controller: an `update` passed with a `:read` permission. ([@enmanuelm19][], [@coorasse][])
+
+  ```ruby
+  class BookServicesController < ApplicationController
+    load_and_authorize_resource :book
+  end
+
+  # PATCH /book_services/1
+  # 3.x: authorizes :show on the book, so `can :read, Book` is enough
+  # 4.0: authorizes :update on the book loaded with params[:id]
+  ```
+
+  A parent resource that is not loaded `through` by another resource and is not in the parameters, such as one found with `id_param`, needs `parent: true`.
+
 ### Other changes
 
 * [#808](https://github.com/CanCanCommunity/cancancan/pull/808): Add `:if` and `:unless` options to `skip_load_resource`, `skip_authorize_resource` and `skip_load_and_authorize_resource`, as `check_authorization` already supports. ([@ammarghaus][])
@@ -889,3 +905,4 @@ Please read the [guide on migrating from CanCanCan 2.x to 3.0](https://github.co
 [@jtagle2]: https://github.com/jtagle2
 [@mamhoff]: https://github.com/mamhoff
 [@tr4b4nt]: https://github.com/tr4b4nt
+[@enmanuelm19]: https://github.com/enmanuelm19

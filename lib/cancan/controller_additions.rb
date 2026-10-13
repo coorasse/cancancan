@@ -46,8 +46,9 @@ module CanCan
       #     end
       #   end
       #
-      # If a name is provided which does not match the controller it assumes it is a parent resource. Child
-      # resources can then be loaded through it.
+      # If a name is provided which does not match the controller and another resource is loaded through it,
+      # or the request has a parameter named after it, such as +author_id+, it assumes it is a parent resource.
+      # Child resources can then be loaded through it.
       #
       #   class BooksController < ApplicationController
       #     load_resource :author
@@ -85,7 +86,8 @@ module CanCan
       #
       # [:+parent+]
       #   True or false depending on if the resource is considered a parent resource.
-      #   This defaults to +true+ if a resource name is given which does not match the controller.
+      #   This defaults to +true+ if a resource name is given which does not match the controller and
+      #   another resource is loaded through it or the request has a parameter named after it, such as +author_id+.
       #
       # [:+class+]
       #   The class to use for the model (string or constant).
@@ -163,7 +165,8 @@ module CanCan
       #
       # [:+parent+]
       #   True or false depending on if the resource is considered a parent resource.
-      #   This defaults to +true+ if a resource name is given which does not match the controller.
+      #   This defaults to +true+ if a resource name is given which does not match the controller and
+      #   another resource is loaded through it or the request has a parameter named after it, such as +author_id+.
       #
       # [:+class+]
       #   The class to use for the model (string or constant). This passed in when the instance variable is not set.
@@ -339,7 +342,16 @@ module CanCan
         self._cancan_skipper ||= { authorize: {}, load: {} }
       end
 
+      # The names of the resources that another resource of this controller is loaded through.
+      def cancan_parent_names
+        _cancan_parent_names || []
+      end
+
       private
+
+      def add_cancan_parent_names(names)
+        self._cancan_parent_names = cancan_parent_names | Array(names).flatten.map(&:to_sym)
+      end
 
       # _cancan_skipper is a class_attribute: a subclass shares the hash of its superclass until it assigns
       # its own. Assign a copy, so a skip in a subclass does not change the superclass or sibling classes.
@@ -352,7 +364,7 @@ module CanCan
     def self.included(base)
       base.extend ClassMethods
       base.helper_method :can?, :cannot?, :current_ability if base.respond_to? :helper_method
-      base.class_attribute :_cancan_skipper
+      base.class_attribute :_cancan_skipper, :_cancan_parent_names
     end
 
     # Raises a CanCan::AccessDenied exception if the current_ability cannot

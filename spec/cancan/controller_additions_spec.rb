@@ -123,6 +123,15 @@ describe CanCan::ControllerAdditions do
     expect(@controller_class.cancan_skipper[:load]).to be(true)
   end
 
+  it 'remembers the resources that another resource is loaded through' do
+    allow(@controller_class).to receive(:before_action)
+    expect(@controller_class.cancan_parent_names).to eq([])
+    @controller_class.load_and_authorize_resource :project
+    @controller_class.load_and_authorize_resource :task, through: :project
+    @controller_class.load_resource :comment, through: %i[task event]
+    expect(@controller_class.cancan_parent_names).to eq(%i[project task event])
+  end
+
   it 'skip_authorize_resource adds itself to the cancan skipper with given model name and options' do
     @controller_class.skip_authorize_resource(:project, only: %i[index show])
     expect(@controller_class.cancan_skipper[:authorize][:project]).to eq(only: %i[index show])
@@ -207,6 +216,15 @@ describe CanCan::ControllerAdditions do
 
       expect(sub_controller_class.cancan_skipper[:authorize][nil]).to eq({})
       expect(controller_class.cancan_skipper[:authorize]).not_to have_key(nil)
+    end
+
+    it 'shares the parent resources of the super_class without changing them from a sub_class' do
+      allow(@super_controller_class).to receive(:before_action)
+      @super_controller_class.load_resource :task, through: :project
+      @sub_controller_class.load_resource :comment, through: :task
+
+      expect(@super_controller_class.cancan_parent_names).to eq([:project])
+      expect(@sub_controller_class.cancan_parent_names).to eq(%i[project task])
     end
   end
 end
