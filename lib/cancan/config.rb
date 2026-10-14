@@ -60,7 +60,7 @@ module CanCan
       "cannot be #{rule.actions.join(', ')}, while it used to select the accessible ones: " \
       "cannot #{rule.actions.map(&:inspect).join(', ')}, #{rule.subjects.join(', ')}, #{rule.conditions.to_sql}. " \
       'Review the rule and set CanCan.warn_on_cannot_rules_with_scope = false. See ' \
-      'https://github.com/CanCanCommunity/cancancan/blob/develop/docs/define_abilities_with_blocks.md' \
+      'https://github.com/CanCanCommunity/cancancan/blob/main/docs/define_abilities_with_blocks.md' \
       '#block-conditions-with-activerecord-scopes'
   end
 
