@@ -287,6 +287,10 @@
   # 4.0: builds the book for the author 2, so authorization is denied
   ```
 
+#### Continuous integration
+
+* [#853](https://github.com/CanCanCommunity/cancancan/pull/853): Run the test suite on TruffleRuby. ([@andrykonchin][])
+
 ## 3.7.0
 
 * Merge the `ControllerResourceLoader`, `ControllerResourceBuilder`, `ControllerResourceFinder`, `ControllerResourceNameFinder` and `ControllerResourceSanitizer` modules into `CanCan::ControllerResource`, and call the params method of the controller only once per request: it was called once more for every attribute set by the conditions of the ability. **WARNING**: the five modules no longer exist; override their methods in a subclass of `CanCan::ControllerResource` instead. ([@coorasse][])
@@ -305,7 +309,6 @@
 * [#909](https://github.com/CanCanCommunity/cancancan/pull/909): Make `can?` and `accessible_by` consistent for `cannot` rules and single table inheritance: a `cannot` rule on a subclass keeps its precedence in `accessible_by`, records with NULL in a column of a `cannot` condition are no longer excluded, rules on subclasses of subclasses reach the base class, and a class check passes when the class or any of its subclasses is allowed. **WARNING**: `accessible_by` returns more records when a `cannot` rule has conditions on a nullable column, and `can?` on an STI base class no longer fails because a subclass is forbidden. ([@coorasse][], [@0llirocks][], [@kevinluo201][])
 * [#880](https://github.com/CanCanCommunity/cancancan/pull/880): Fix `accessible_by` with rules on STI subclasses: a rule on a subclass without conditions no longer discards the rules defined before it, and rules with the same conditions on different subjects are no longer compressed into one. ([@takayamaki][], [@sjoulbak][])
 * [#890](https://github.com/CanCanCommunity/cancancan/pull/890): Support an Active Record relation as the value of a condition in `can?`: the selected column, or the primary key, is checked with a query, as `accessible_by` already did. ([@olistik][])
-* [#853](https://github.com/CanCanCommunity/cancancan/pull/853): Run the test suite on TruffleRuby. ([@andrykonchin][])
 * [#908](https://github.com/CanCanCommunity/cancancan/pull/908): Join consecutive `can` rules in a flat chain of ORs in the SQL conditions, so that many rules on the same model no longer overflow the parser of SQLite. ([@coorasse][])
 * [#907](https://github.com/CanCanCommunity/cancancan/pull/907): Make `with_accessible_by_strategy` thread safe: the strategy chosen in the block no longer leaks into concurrent requests. ([@NikosVlagoidis][], [@coorasse][])
 * [#906](https://github.com/CanCanCommunity/cancancan/pull/906): Keep the conditions of an association when a rule is a scope: `group.posts.accessible_by(ability)` returned the posts of every group matched by the scope. **WARNING**: `accessible_by` called on an association now returns fewer records when the scope of a rule constrains the same column as the association. Only the conditions dropped by `merge` are applied again, so a condition on a subquery like `where(category: Category.where(...))` is not turned into `IS NULL`, and the conditions of a default scope removed by `unscope` in the rule stay removed. ([@coorasse][])
