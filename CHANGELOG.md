@@ -122,16 +122,17 @@
   > **WARNING**: this change can grant access that 3.x denied, not only deny it, and no test fails. A parent that is no longer detected is authorized with the action of the controller, which the ability may allow more widely than `:show`:
   >
   > ```ruby
-  > can :read, Agreed, group: { members: { id: user.id } }
+  > can :read, Agreed, agreed_groups: { group_id: user.group_ids }
   > can %i[new create], Agreed
   >
   > class CastedVotesController < ApplicationController
+  >   before_action { @agreed = Agreed.find_by(code: params[:agreed_code]) }
   >   authorize_resource :agreed
   > end
   >
   > # POST /agreeds/:agreed_code/casted_votes
-  > # 3.x: authorizes :show on the agreed, so only its readers can vote
-  > # 4.0: authorizes :create on Agreed, so anyone can vote on any agreed
+  > # 3.x: authorizes :show on @agreed, so only the members of its groups can vote
+  > # 4.0: authorizes :create on @agreed, so anyone can vote on any agreed
   > ```
 
   A parent is also no longer loaded with `params[:<name>_id]`, so it can be loaded with the id of another model, or not found:
