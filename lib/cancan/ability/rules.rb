@@ -18,22 +18,24 @@ module CanCan
         add_rule_to_index(rule, rules.size - 1)
       end
 
-      def add_rule_to_index(rule, position)
+      def rules_index
         @rules_index ||= {}
+      end
 
+      def add_rule_to_index(rule, position)
         subjects = rule.subjects.compact
         subjects << :all if subjects.empty?
 
         subjects.each do |subject|
-          @rules_index[subject] ||= []
-          @rules_index[subject] << position
+          rules_index[subject] ||= []
+          rules_index[subject] << position
         end
       end
 
       # Returns an array of Rule instances which match the action and subject
       # This does not take into consideration any hash conditions or block statements
       def relevant_rules(action, subject)
-        return [] unless @rules
+        return [] if rules.empty?
 
         # Actions are symbols in the rules, so 'destroy' must also match a `cannot :destroy`.
         action = action.to_sym if action.is_a?(String)
@@ -51,7 +53,7 @@ module CanCan
         if subject.is_a?(Hash)
           rules
         else
-          positions = @rules_index.values_at(subject, *alternative_subjects(subject))
+          positions = rules_index.values_at(subject, *alternative_subjects(subject))
           positions.compact!
           positions.flatten!
           positions.sort!
