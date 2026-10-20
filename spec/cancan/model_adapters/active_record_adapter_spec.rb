@@ -177,6 +177,18 @@ RSpec.describe CanCan::ModelAdapters::ActiveRecordAdapter do
         expect(Article.accessible_by(@ability)).to be_empty
       end
 
+      it 'does not fetch any records when only aliases are defined' do
+        @ability.alias_action :preview, to: :read
+        Article.create!
+        expect(Article.accessible_by(@ability)).to be_empty
+      end
+
+      it 'does not fetch any records after merging an empty ability' do
+        @ability.merge(Class.new { include CanCan::Ability }.new)
+        Article.create!
+        expect(Article.accessible_by(@ability)).to be_empty
+      end
+
       it 'fetches all articles when one can read all' do
         @ability.can :read, Article
         article = Article.create!

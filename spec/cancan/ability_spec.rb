@@ -337,6 +337,17 @@ describe CanCan::Ability do
     expect(@ability.can?(:update, 123)).to be(true)
   end
 
+  it 'denies everything when an alias is defined before any rule' do
+    @ability.alias_action :preview, to: :read
+    expect(@ability.can?(:read, Integer)).to be(false)
+    expect(@ability.can?(:read, 1 => Integer)).to be(false)
+  end
+
+  it 'denies everything when the aliases are cleared before any rule' do
+    @ability.clear_aliased_actions
+    expect(@ability.can?(:read, Integer)).to be(false)
+  end
+
   it 'forgets the default aliases cleared after a check' do
     @ability.can :read, :all
     expect(@ability.can?(:index, 123)).to be(true)
@@ -975,6 +986,16 @@ describe CanCan::Ability do
 
       @ability.merge(another_ability)
       expect(@ability.send(:rules).size).to eq(0)
+      expect(@ability.can?(:read, Integer)).to be(false)
+    end
+
+    it 'keeps the rules defined after merging an empty ability' do
+      (another_ability = double).extend(CanCan::Ability)
+
+      @ability.merge(another_ability)
+      @ability.can :read, Integer
+      expect(@ability.can?(:read, Integer)).to be(true)
+      expect(@ability.can?(:read, String)).to be(false)
     end
 
     it 'applies its own aliases to the rules of the given ability, even when they were already checked' do
