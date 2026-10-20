@@ -184,7 +184,7 @@ class ArticlesController < ApplicationController
 end
 ```
 
-The post is loaded with `params[:id]` and authorized with the action of the controller. It is considered a parent resource, loaded with `params[:post_id]` and authorized with `:show`, only when another resource is loaded `through` it or when the request has a `post_id` parameter. Pass `parent: false` to never treat it as a parent.
+The post is loaded with `params[:id]` and authorized with the action of the controller. It is considered a parent resource, loaded with `params[:post_id]` and authorized with `:show`, only when another resource is loaded `through` it or when the request has a `post_id` parameter. Pass `parent: true` to always treat it as a parent, for instance when it is found with another parameter, and `parent: false` to never treat it as a parent.
 
 If the model class is namespaced differently than the controller you will need to specify the `:class` option.
 

@@ -107,7 +107,7 @@
 
 #### A resource named differently than the controller is a parent only when it is nested
 
-* [#925](https://github.com/CanCanCommunity/cancancan/pull/925): A resource whose name does not match the controller is a parent resource only when another resource of the controller is loaded `through` it, or when the request has a parameter named after it, such as `book_id`. Every resource named differently than the controller was considered a parent, so it was loaded with `params[:book_id]` and authorized with `:show` instead of the action of the controller: an `update` passed with a `:read` permission. ([@enmanuelm19][], [@coorasse][])
+* [#925](https://github.com/CanCanCommunity/cancancan/pull/925): A resource whose name does not match the controller is a parent resource only when another resource of the controller is loaded `through` it, or when the request has a parameter named after it, such as `book_id`. Otherwise it is loaded with `params[:id]` (or its `id_param`) and authorized with the action of the controller instead of `:show`. In 3.x every resource named differently than the controller was a parent, so it was loaded with `params[:book_id]` and authorized with `:show`: an `update` passed with a `:read` permission. ([@enmanuelm19][], [@coorasse][])
 
   ```ruby
   class BookServicesController < ApplicationController
@@ -119,7 +119,42 @@
   # 4.0: authorizes :update on the book loaded with params[:id]
   ```
 
-  A parent resource that is not loaded `through` by another resource and is not in the parameters, such as one found with `id_param`, needs `parent: true`.
+  > **WARNING**: this change can grant access that 3.x denied, not only deny it, and no test fails. A parent that is no longer detected is authorized with the action of the controller, which the ability may allow more widely than `:show`:
+  >
+  > ```ruby
+  > can :read, Agreed, group: { members: { id: user.id } }
+  > can %i[new create], Agreed
+  >
+  > class CastedVotesController < ApplicationController
+  >   authorize_resource :agreed
+  > end
+  >
+  > # POST /agreeds/:agreed_code/casted_votes
+  > # 3.x: authorizes :show on the agreed, so only its readers can vote
+  > # 4.0: authorizes :create on Agreed, so anyone can vote on any agreed
+  > ```
+
+  A parent is also no longer loaded with `params[:<name>_id]`, so it can be loaded with the id of another model, or not found:
+
+  ```ruby
+  class AddressVerificationsController < ApplicationController
+    load_and_authorize_resource :user
+  end
+
+  # GET /users/1/address_verification: still a parent, User.find(params[:user_id])
+  # GET /address_verifications/5: 4.0 loads User.find(params[:id]), the wrong user or a 404
+  ```
+
+  To upgrade:
+
+  1. Find every `load_and_authorize_resource`, `load_resource` and `authorize_resource` whose name differs from the controller, for instance with `grep -rnE "(load_and_authorize|load|authorize)_resource :" app/controllers`.
+  2. It stays a parent when another resource of the controller is loaded `through` it, or when every request to the controller has `<name>_id`, such as `book_id`.
+  3. Otherwise, if it is meant as a parent, add `parent: true`. Look in particular for a custom `id_param` or a `find_by:` on another parameter (`find_by: :reference_code, id_param: :patient_reference_code`), a route parameter not named `<name>_id` (`agreed_code`), and controllers also served by routes that are not nested.
+
+  ```ruby
+  load_and_authorize_resource :patient, find_by: :reference_code, id_param: :patient_reference_code, parent: true
+  authorize_resource :agreed, parent: true
+  ```
 
 #### The conditions of the ability pre-fill a new resource only when they restrict it
 
