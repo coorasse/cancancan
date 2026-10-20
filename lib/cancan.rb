@@ -15,6 +15,12 @@ require 'cancan/model_adapters/default_adapter'
 require 'cancan/rules_compressor'
 
 if defined? ActiveRecord
+  if ActiveRecord.version.release < Gem::Version.new('8.0')
+    raise CanCan::Error,
+          'cancancan 4 requires Active Record 8.0 or later; ' \
+          "use cancancan 3.x with Active Record #{ActiveRecord.version}"
+  end
+
   require 'cancan/model_adapters/conditions_extractor'
   require 'cancan/model_adapters/conditions_normalizer'
   require 'cancan/model_adapters/sti_normalizer'
