@@ -39,7 +39,7 @@ The same option applies to singleton resources, for instance `has_one :profile, 
 
 If the resource name (`:project` in this case) does not match the controller, it is considered a parent resource when another resource is loaded `through` it or when the request has a parameter named after it, such as `project_id`. A parent resource is loaded with `params[:project_id]` and authorized with the `:show` action (see `:parent_action`). You can manually specify parent/child resources using the `parent: true` and `parent: false` options.
 
-> **Warning**: a parent resource is always authorized with the `:show` action, whatever the action of the controller. If a resource with a different name than the controller is not a parent, pass `parent: false`, otherwise it will be authorized with `:show` also for actions like `update` or `destroy`.
+> **Warning**: a parent resource is always authorized with the `:show` action, whatever the action of the controller, and a resource that is not a parent is authorized with the action of the controller. If a parent is meant to be found without a `<name>_id` parameter, for instance with `id_param`, or the controller is also served by routes that are not nested, pass `parent: true`: otherwise it is loaded with `params[:id]`, or its `id_param`, and authorized with the action of the controller, which the ability may allow more widely than `:show`.
 
 ## Securing `through` changes
 
