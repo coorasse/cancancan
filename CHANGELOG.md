@@ -122,17 +122,17 @@
   > **WARNING**: this change can grant access that 3.x denied, not only deny it, and no test fails. A parent that is no longer detected is authorized with the action of the controller, which the ability may allow more widely than `:show`:
   >
   > ```ruby
-  > can :read, Agreed, agreed_groups: { group_id: user.group_ids }
-  > can %i[new create], Agreed
+  > can :read, Project, members: { user_id: user.id }
+  > can :create, Project
   >
-  > class CastedVotesController < ApplicationController
-  >   before_action { @agreed = Agreed.find_by(code: params[:agreed_code]) }
-  >   authorize_resource :agreed
+  > class CommentsController < ApplicationController
+  >   before_action { @project = Project.find_by!(slug: params[:project_slug]) }
+  >   authorize_resource :project
   > end
   >
-  > # POST /agreeds/:agreed_code/casted_votes
-  > # 3.x: authorizes :show on @agreed, so only the members of its groups can vote
-  > # 4.0: authorizes :create on @agreed, so anyone can vote on any agreed
+  > # POST /projects/:project_slug/comments
+  > # 3.x: authorizes :show on @project, so only its members can comment
+  > # 4.0: authorizes :create on @project, so every user can comment on every project
   > ```
 
   A parent is also no longer loaded with `params[:<name>_id]`, so it can be loaded with the id of another model, or not found:
@@ -150,11 +150,11 @@
 
   1. Find every `load_and_authorize_resource`, `load_resource` and `authorize_resource` whose name differs from the controller, for instance with `grep -rnE "(load_and_authorize|load|authorize)_resource :" app/controllers`.
   2. It stays a parent when another resource of the controller is loaded `through` it, or when every request to the controller has `<name>_id`, such as `book_id`.
-  3. Otherwise, if it is meant as a parent, add `parent: true`. Look in particular for a custom `id_param` or a `find_by:` on another parameter (`find_by: :reference_code, id_param: :patient_reference_code`), a route parameter not named `<name>_id` (`agreed_code`), and controllers also served by routes that are not nested.
+  3. Otherwise, if it is meant as a parent, add `parent: true`. Look in particular for a custom `id_param` or a `find_by:` on another parameter (`find_by: :reference_code, id_param: :patient_reference_code`), a route parameter not named `<name>_id` (`project_slug`), and controllers also served by routes that are not nested.
 
   ```ruby
   load_and_authorize_resource :patient, find_by: :reference_code, id_param: :patient_reference_code, parent: true
-  authorize_resource :agreed, parent: true
+  authorize_resource :project, parent: true
   ```
 
 #### The conditions of the ability pre-fill a new resource only when they restrict it
