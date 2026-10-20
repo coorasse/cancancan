@@ -4,7 +4,7 @@
 
 #### Ruby 3.2+ and Rails 8.0+
 
-* Drop support for Ruby < 3.2 and Rails < 8.0. The `ActiveRecord4Adapter` and `ActiveRecord5Adapter` classes are merged into `ActiveRecordAdapter`, and `:subquery` is always the default `accessible_by_strategy`. ([@coorasse][])
+* Drop support for Ruby < 3.2 and Rails < 8.0. The `ActiveRecord4Adapter` and `ActiveRecord5Adapter` classes are merged into `ActiveRecordAdapter`, and `:subquery` is always the default `accessible_by_strategy`. cancancan raises an error at load time when Active Record is older than 8.0. ([@coorasse][])
 
 #### Active Record scopes can be combined with other rules
 
