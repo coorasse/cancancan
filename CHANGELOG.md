@@ -1,3 +1,7 @@
+## Unreleased
+
+* [#939](https://github.com/CanCanCommunity/cancancan/issues/939): Do not match a record of another model with the same id in `can?` when the value of a condition is a relation, as `accessible_by` already did: with a polymorphic association, `can :read, Document, owner: Introduction.where(client: user)` allowed a document owned by a record of another model with the id of an allowed introduction. ([@manuelmeurer][])
+
 ## 3.7.0
 
 * Merge the `ControllerResourceLoader`, `ControllerResourceBuilder`, `ControllerResourceFinder`, `ControllerResourceNameFinder` and `ControllerResourceSanitizer` modules into `CanCan::ControllerResource`, and call the params method of the controller only once per request: it was called once more for every attribute set by the conditions of the ability. **WARNING**: the five modules no longer exist; override their methods in a subclass of `CanCan::ControllerResource` instead. ([@coorasse][])
@@ -767,6 +771,7 @@ Please read the [guide on migrating from CanCanCan 2.x to 3.0](https://github.co
 [@jaredbeck]: https://github.com/jaredbeck
 [@NikosVlagoidis]: https://github.com/NikosVlagoidis
 [@olistik]: https://github.com/olistik
+[@manuelmeurer]: https://github.com/manuelmeurer
 [@takayamaki]: https://github.com/takayamaki
 [@sjoulbak]: https://github.com/sjoulbak
 [@0llirocks]: https://github.com/0llirocks
