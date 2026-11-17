@@ -1,4 +1,4 @@
-## Unreleased
+## 3.7.1
 
 * [#939](https://github.com/CanCanCommunity/cancancan/issues/939): Do not match a record of another model with the same id in `can?` when the value of a condition is a relation, as `accessible_by` already did: with a polymorphic association, `can :read, Document, owner: Introduction.where(client: user)` allowed a document owned by a record of another model with the id of an allowed introduction. ([@manuelmeurer][])
 
