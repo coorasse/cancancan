@@ -116,8 +116,13 @@ module CanCan
     end
 
     # Like Active Record with a relation as condition value: the selected column, or the primary key, is matched.
+    # A record matches the primary key only when it is an instance of the model of the relation, so that a record
+    # of another model with the same id, e.g. through a polymorphic association, does not match.
     def relation_match?(attribute, relation)
-      relation.where(relation.select_values.first || relation.primary_key => attribute).exists?
+      column = relation.select_values.first
+      return false if column.nil? && attribute.is_a?(ActiveRecord::Base) && !attribute.is_a?(relation.klass)
+
+      relation.where(column || relation.primary_key => attribute).exists?
     end
 
     def hash_condition_match?(attribute, value)
