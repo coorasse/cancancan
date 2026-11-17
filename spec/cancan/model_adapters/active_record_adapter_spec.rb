@@ -302,6 +302,21 @@ RSpec.describe CanCan::ModelAdapters::ActiveRecordAdapter do
         expect(ability.can?(:read, other_article)).to eq(false)
       end
 
+      it 'does not match a record of another model with the same id in can? for a polymorphic relation condition' do
+        user = User.create!(name: 'Arthur Dent')
+        article = Article.create!(name: 'How to fly', user: user)
+        comment = Comment.create!(id: article.id)
+        article_attachment = Attachment.create!(attachable: article)
+        comment_attachment = Attachment.create!(attachable: comment)
+        ability = Ability.new(user)
+
+        ability.can :read, Attachment, attachable: Article.where(user_id: user.id)
+
+        expect(Attachment.accessible_by(ability)).to match_array([article_attachment])
+        expect(ability.can?(:read, article_attachment)).to eq(true)
+        expect(ability.can?(:read, comment_attachment)).to eq(false)
+      end
+
       it 'fetches only associated records when using with a scope for conditions' do
         @ability.can :read, Article, Article.where(secret: true)
         category1 = Category.create!(visible: false)
