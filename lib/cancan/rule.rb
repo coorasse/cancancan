@@ -22,8 +22,8 @@ module CanCan
     def initialize(base_behavior, action, subject, *extra_args, &block)
       # for backwards compatibility, attributes are an optional parameter. Check if
       # attributes were passed or are actually conditions
-      attributes, extra_args = parse_attributes_from_extra_args(extra_args)
-      condition_and_block_check(extra_args, block, action, subject)
+      attributes = extra_args.shift if valid_attribute_param?(extra_args.first)
+      condition_and_block_check(extra_args.first, block, action, subject)
       @match_all = action.nil? && subject.nil?
       raise Error, "Subject is required for #{action}" if action && subject.nil?
 
@@ -31,7 +31,7 @@ module CanCan
       @actions = wrap(action).map(&:to_sym)
       @subjects = wrap(subject)
       @attributes = wrap(attributes)
-      @conditions = extra_args || {}
+      @conditions = extra_args.first || {}
       @block = block
     end
 
@@ -113,12 +113,6 @@ module CanCan
 
     def matches_subject_class?(subject)
       SubjectClassMatcher.matches_subject_class?(@subjects, subject)
-    end
-
-    def parse_attributes_from_extra_args(args)
-      attributes = args.shift if valid_attribute_param?(args.first)
-      extra_args = args.shift
-      [attributes, extra_args]
     end
 
     def condition_and_block_check(conditions, block, action, subject)

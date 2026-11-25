@@ -1,3 +1,7 @@
+## Unreleased
+
+* Avoid a temporary array when parsing rule attributes and conditions. ([@thomasklemm][])
+
 ## 3.7.1
 
 * [#939](https://github.com/CanCanCommunity/cancancan/issues/939): Do not match a record of another model with the same id in `can?` when the value of a condition is a relation, as `accessible_by` already did: with a polymorphic association, `can :read, Document, owner: Introduction.where(client: user)` allowed a document owned by a record of another model with the id of an allowed introduction. ([@manuelmeurer][])
@@ -703,6 +707,7 @@ Please read the [guide on migrating from CanCanCan 2.x to 3.0](https://github.co
 * Initial release.
 
 [@coorasse]: https://github.com/coorasse
+[@thomasklemm]: https://github.com/thomasklemm
 [@cb341]: https://github.com/cb341
 [@kraflab]: https://github.com/kraflab
 [@lizzyaustad]: https://github.com/lizzyaustad
