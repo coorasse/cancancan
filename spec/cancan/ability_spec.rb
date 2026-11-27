@@ -755,6 +755,22 @@ describe CanCan::Ability do
     expect(@ability.instance_variable_get(:@rules_index)).not_to have_key('foo')
   end
 
+  it 'reads the actions of a rule before its attributes' do
+    actions = [:read]
+    attributes = [:to_s]
+    attributes.define_singleton_method(:to_ary) { actions.replace([:destroy]) && self }
+    @ability.can actions, Integer, attributes
+    expect(@ability.can?(:read, Integer)).to be(true)
+    expect(@ability.can?(:destroy, Integer)).to be(false)
+  end
+
+  it 'rejects conditions with a block before reading the attributes' do
+    attributes = [:to_s]
+    attributes.define_singleton_method(:to_ary) { raise 'attributes read' }
+    expect { @ability.can(:read, Integer, attributes, odd?: true) { true } }
+      .to raise_error(CanCan::BlockAndConditionsError)
+  end
+
   describe 'unauthorized message' do
     after(:each) do
       I18n.backend = nil
